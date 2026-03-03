@@ -902,7 +902,7 @@ git clone https://github.com/ashimov/HawkAPI.git
 cd hawkapi
 pip install -e ".[dev]"
 
-# Run tests (634 tests, 95% coverage)
+# Run tests (696 tests, 95% coverage)
 pytest
 
 # With coverage report
