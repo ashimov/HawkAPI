@@ -46,7 +46,7 @@ nav:
       - Static Files: guide/static-files.md
       - Configuration: guide/configuration.md
       - Testing: guide/testing.md
-  - API Reference: api/
+  - API Reference: api/index.md
 
 markdown_extensions:
   - pymdownx.highlight:

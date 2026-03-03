@@ -80,7 +80,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --extra dev --extra pydantic
+        run: uv sync --extra dev --extra pydantic --extra uvicorn
 
       - name: Pyright
         run: uv run pyright src/
