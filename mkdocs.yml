@@ -1,0 +1,71 @@
+site_name: HawkAPI
+site_description: High-performance Python web framework
+site_url: https://hawkapi.ashimov.com
+repo_url: https://github.com/ashimov/HawkAPI
+repo_name: ashimov/HawkAPI
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - content.code.annotate
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - toc.follow
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+  - Guide:
+      - Routing: guide/routing.md
+      - Responses: guide/responses.md
+      - Dependency Injection: guide/dependency-injection.md
+      - Middleware: guide/middleware.md
+      - Security: guide/security.md
+      - Permissions: guide/permissions.md
+      - Versioning: guide/versioning.md
+      - Observability: guide/observability.md
+      - WebSockets: guide/websockets.md
+      - Static Files: guide/static-files.md
+      - Configuration: guide/configuration.md
+      - Testing: guide/testing.md
+  - API Reference: api/
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            show_root_heading: true
+            heading_level: 3
