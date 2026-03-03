@@ -11,7 +11,7 @@
   <a href="https://pypi.org/project/hawkapi/"><img src="https://img.shields.io/pypi/v/hawkapi.svg" alt="PyPI"></a>
   <a href="https://pypi.org/project/hawkapi/"><img src="https://img.shields.io/pypi/pyversions/hawkapi.svg" alt="Python"></a>
   <a href="https://github.com/ashimov/HawkAPI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ashimov/HawkAPI.svg" alt="License"></a>
-  <a href="https://codecov.io/gh/ashimov/HawkAPI"><img src="https://codecov.io/gh/ashimov/HawkAPI/branch/main/graph/badge.svg" alt="Coverage"></a>
+  <a href="https://github.com/ashimov/HawkAPI"><img src="https://img.shields.io/badge/coverage-95%25-brightgreen.svg" alt="Coverage"></a>
   <a href="https://hawkapi.ashimov.com"><img src="https://img.shields.io/badge/docs-hawkapi.ashimov.com-blue.svg" alt="Docs"></a>
   <a href="https://pypi.org/project/hawkapi/"><img src="https://img.shields.io/pypi/dm/hawkapi.svg" alt="Downloads"></a>
 </p>
