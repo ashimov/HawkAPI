@@ -47,7 +47,7 @@ class StreamingResponse:
             lower = key.lower()
             if lower == "content-type":
                 has_content_type = True
-            raw.append((key.lower().encode("latin-1"), value.encode("latin-1")))
+            raw.append((lower.encode("latin-1"), value.encode("latin-1")))
 
         if not has_content_type:
             raw.append((b"content-type", self.content_type.encode("latin-1")))

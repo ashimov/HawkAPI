@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from hawkapi.middleware import Middleware
     from hawkapi.middleware.prometheus import PrometheusMiddleware
     from hawkapi.middleware.structured_logging import StructuredLoggingMiddleware
+    from hawkapi.middleware.trusted_proxy import TrustedProxyMiddleware
     from hawkapi.observability import ObservabilityConfig, ObservabilityMiddleware
     from hawkapi.openapi import (
         Change,
@@ -71,6 +72,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "StructuredLoggingMiddleware": (
         "hawkapi.middleware.structured_logging",
         "StructuredLoggingMiddleware",
+    ),
+    "TrustedProxyMiddleware": (
+        "hawkapi.middleware.trusted_proxy",
+        "TrustedProxyMiddleware",
     ),
     # pagination
     "Page": ("hawkapi.pagination", "Page"),
@@ -193,6 +198,7 @@ __all__ = [
     "StaticFiles",
     "StreamingResponse",
     "StructuredLoggingMiddleware",
+    "TrustedProxyMiddleware",
     "TestClient",
     "TestResponse",
     "VersionRouter",

@@ -10,8 +10,9 @@ from collections.abc import Callable
 from typing import Any
 
 from hawkapi._types import ASGIApp, Receive, Scope, Send
+from hawkapi.background import BackgroundTasks
 from hawkapi.di.container import Container
-from hawkapi.di.resolver import resolve_dependencies
+from hawkapi.di.resolver import resolve_dependencies, resolve_from_plan
 from hawkapi.di.scope import Scope as DIScope
 from hawkapi.exceptions import HTTPException
 from hawkapi.lifespan.hooks import HookRegistry
@@ -21,6 +22,7 @@ from hawkapi.middleware.base import Middleware
 from hawkapi.requests.request import Request, RequestEntityTooLarge
 from hawkapi.responses.json_response import JSONResponse
 from hawkapi.responses.response import Response
+from hawkapi.responses.streaming import StreamingResponse
 from hawkapi.routing.route import Route
 from hawkapi.routing.router import Router
 from hawkapi.security.api_key import MissingCredentialError as _MissingCred
@@ -479,6 +481,7 @@ class HawkAPI(Router):
             return
 
         route = result.route
+        plan = route._handler_plan  # pyright: ignore[reportPrivateUsage]
         request = Request(
             scope,
             receive,
@@ -496,24 +499,37 @@ class HawkAPI(Router):
             if route.permissions and self._permission_policy is not None:
                 await self._permission_policy.check(request, route.permissions)
 
-            di_scope = self.container.scope()
-            await di_scope.__aenter__()
+            # Only create DI scope when needed
+            if plan is None or plan.needs_di_scope:
+                di_scope = self.container.scope()
+                await di_scope.__aenter__()
 
-            # Resolve handler arguments (with DI)
-            kwargs, cleanup_stack = await resolve_dependencies(
-                route.handler, request, di_scope, self.container
-            )
+            # Resolve handler arguments
+            if plan is not None:
+                kwargs, cleanup_stack = await resolve_from_plan(
+                    plan, request, di_scope, self.container
+                )
+            else:
+                kwargs, cleanup_stack = await resolve_dependencies(
+                    route.handler, request, di_scope, self.container
+                )
 
-            # Extract BackgroundTasks if handler requested it
-            from hawkapi.background import BackgroundTasks
+            # Extract BackgroundTasks using plan for O(1) lookup
+            if plan is not None and plan.has_background_tasks and plan.bg_tasks_param_name:
+                background_tasks = kwargs.get(plan.bg_tasks_param_name)
+            else:
+                for _k, v in kwargs.items():
+                    if isinstance(v, BackgroundTasks):
+                        background_tasks = v
+                        break
 
-            for _k, v in kwargs.items():
-                if isinstance(v, BackgroundTasks):
-                    background_tasks = v
-                    break
+            # Call the handler (use plan.is_async to avoid per-request inspect)
+            if plan is not None:
+                is_async = plan.is_async
+            else:
+                is_async = inspect.iscoroutinefunction(route.handler)
 
-            # Call the handler (async or sync via threadpool)
-            if inspect.iscoroutinefunction(route.handler):
+            if is_async:
                 coro = route.handler(**kwargs)
             else:
                 coro = asyncio.to_thread(route.handler, **kwargs)
@@ -583,8 +599,6 @@ class HawkAPI(Router):
 
         # HEAD requests should not include body
         if method == "HEAD":
-            from hawkapi.responses.streaming import StreamingResponse
-
             if isinstance(response, StreamingResponse):
                 response = Response(status_code=response.status_code)
             elif hasattr(response, "body"):

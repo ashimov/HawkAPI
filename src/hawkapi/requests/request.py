@@ -53,7 +53,7 @@ class Request:
         "_cookies",
         "_path_params",
         "_max_body_size",
-        "state",
+        "_state",
     )
 
     def __init__(
@@ -73,7 +73,18 @@ class Request:
         self._cookies: dict[str, str] | Any = UNSET
         self._path_params = path_params or {}
         self._max_body_size = max_body_size
-        self.state = State()
+        self._state: State | Any = UNSET
+
+    @property
+    def state(self) -> State:
+        """Request state (lazily created on first access)."""
+        if self._state is UNSET:
+            self._state = State()
+        return self._state
+
+    @state.setter
+    def state(self, value: State) -> None:
+        self._state = value
 
     @property
     def scope(self) -> Scope:

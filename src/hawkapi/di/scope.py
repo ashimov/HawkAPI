@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Callable
 from typing import Any
 
 from hawkapi.di.provider import Lifecycle, Provider
@@ -20,7 +21,7 @@ class Scope:
     def __init__(self, providers: dict[tuple[type, str | None], Provider]) -> None:
         self._providers = providers
         self._instances: dict[tuple[type, str | None], Any] = {}
-        self._teardown: list[Any] = []
+        self._teardown: list[tuple[Any, Callable[..., Any]]] = []
 
     async def resolve(self, service_type: type, name: str | None = None) -> Any:
         """Resolve a dependency within this scope."""
@@ -45,7 +46,10 @@ class Scope:
         # Cache scoped instances
         if provider.lifecycle == Lifecycle.SCOPED:
             self._instances[key] = instance
-            self._teardown.append(instance)
+            # Pre-resolve the close method at resolve time
+            close = getattr(instance, "aclose", None) or getattr(instance, "close", None)
+            if close is not None:
+                self._teardown.append((instance, close))
         elif provider.lifecycle == Lifecycle.SINGLETON:
             # Singletons are cached in the provider itself
             pass
@@ -58,13 +62,11 @@ class Scope:
         Ensures ALL instances are cleaned up even if some raise during teardown.
         """
         errors: list[Exception] = []
-        for instance in reversed(self._teardown):
+        for _instance, close in reversed(self._teardown):
             try:
-                close = getattr(instance, "aclose", None) or getattr(instance, "close", None)
-                if close is not None:
-                    result = close()
-                    if inspect.isawaitable(result):
-                        await result
+                result = close()
+                if inspect.isawaitable(result):
+                    await result
             except Exception as exc:
                 errors.append(exc)
         self._instances.clear()

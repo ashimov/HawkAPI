@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from hawkapi._types import ASGIApp, RouteHandler
+from hawkapi.di.param_plan import build_handler_plan, extract_path_param_names
 from hawkapi.routing._radix_tree import RadixTree
 from hawkapi.routing.route import Route
 
@@ -59,6 +60,10 @@ class Router:
             full_path = "/" + version.strip("/") + full_path
         merged_tags = self.tags + (tags or [])
 
+        path_param_names = extract_path_param_names(full_path)
+        container = getattr(self, "container", None)
+        plan = build_handler_plan(handler, container=container, path_params=path_param_names)
+
         route = Route(
             path=full_path,
             handler=handler,
@@ -73,6 +78,7 @@ class Router:
             deprecated=deprecated,
             version=version,
             permissions=permissions,
+            _handler_plan=plan,
         )
         self._tree.insert(route)
         return route
@@ -295,10 +301,21 @@ class Router:
 
     def include_router(self, router: Router) -> None:
         """Mount a sub-router. Its routes are merged into this router's tree."""
+        container = getattr(self, "container", None)
         for route in router.routes:
             # Prepend our prefix to the sub-router's route paths
             full_path = self.prefix + route.path
             merged_tags = self.tags + route.tags
+
+            # Rebuild plan with container if the sub-router didn't have one
+            plan = route._handler_plan  # pyright: ignore[reportPrivateUsage]
+            if container is not None and plan is not None and not plan.needs_di_scope:
+                pp_names = extract_path_param_names(full_path)
+                plan = build_handler_plan(
+                    route.handler,
+                    container=container,
+                    path_params=pp_names,
+                )
 
             merged_route = Route(
                 path=full_path,
@@ -314,6 +331,7 @@ class Router:
                 deprecated=route.deprecated,
                 version=route.version,
                 permissions=route.permissions,
+                _handler_plan=plan,
             )
             self._tree.insert(merged_route)
 

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from hawkapi._types import RouteHandler
+
+if TYPE_CHECKING:
+    from hawkapi.di.param_plan import HandlerPlan
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,3 +28,4 @@ class Route:
     deprecated: bool = False
     version: str | None = None
     permissions: list[str] | None = None
+    _handler_plan: HandlerPlan | None = field(default=None, repr=False)

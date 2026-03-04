@@ -264,9 +264,11 @@ class TestDIScopeTeardownExceptionGroup:
 
         providers: dict[tuple[type, str | None], Provider] = {}
         scope = Scope(providers)
-        # Manually inject teardown instances
-        scope._teardown.append(FailingService())
-        scope._teardown.append(FailingService2())
+        # Manually inject teardown instances as (instance, close_method) tuples
+        svc1 = FailingService()
+        svc2 = FailingService2()
+        scope._teardown.append((svc1, svc1.aclose))
+        scope._teardown.append((svc2, svc2.close))
 
         with pytest.raises(ExceptionGroup) as exc_info:
             await scope.close()

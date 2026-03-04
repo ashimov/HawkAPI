@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>High-performance Python web framework — a faster alternative to FastAPI.</strong>
+  <strong>High-performance Python web framework.</strong>
 </p>
 
 <p align="center">
@@ -42,11 +42,11 @@ Modern Python APIs deserve a framework that's fast by default, not fast with wor
 
 HawkAPI is built from zero on three principles:
 
-**Speed without compromise** — msgspec handles JSON 6-12x faster than Pydantic. Radix tree routes resolve in ~500ns. Large responses serialize 7x faster than FastAPI. These aren't micro-optimizations — they compound under real traffic.
+**Speed without compromise** - msgspec handles JSON 6-12x faster than Pydantic. Radix tree routes resolve in ~500ns. Large responses serialize 7x faster than FastAPI. These aren't micro-optimizations - they compound under real traffic.
 
-**Zero hidden dependencies** — No Starlette, no Pydantic (unless you want it), no version-pinning headaches. The entire ASGI layer is custom-built. You control the stack.
+**Zero hidden dependencies** - No Starlette, no Pydantic (unless you want it), no version-pinning headaches. The entire ASGI layer is custom-built. You control the stack.
 
-**DI that works everywhere** — Dependency injection isn't bolted onto the request cycle. Use it in routes, background workers, CLI commands, tests — same container, same lifecycles.
+**DI that works everywhere** - Dependency injection isn't bolted onto the request cycle. Use it in routes, background workers, CLI commands, tests - same container, same lifecycles.
 
 ---
 
@@ -211,7 +211,7 @@ async def cleanup_task():
 
 ### Generator Dependencies
 
-Dependencies with `yield` for resource lifecycle management — code after `yield` runs as cleanup:
+Dependencies with `yield` for resource lifecycle management - code after `yield` runs as cleanup:
 
 ```python
 from typing import Annotated
@@ -233,7 +233,7 @@ Both sync and async generators work. Multiple generators clean up in reverse ord
 
 ### response_model
 
-Filter and validate responses — hide internal fields from API output:
+Filter and validate responses - hide internal fields from API output:
 
 ```python
 class UserFull(msgspec.Struct):
@@ -456,7 +456,7 @@ from hawkapi import StaticFiles
 
 app.mount("/static", StaticFiles(directory="static"))
 
-# HTML mode — serves index.html for directories
+# HTML mode - serves index.html for directories
 app.mount("/site", StaticFiles(directory="public", html=True))
 ```
 
@@ -545,7 +545,7 @@ Supports `.env` files and environment profiles (`.env.development`, `.env.produc
 
 ### Testing
 
-Sync `TestClient` for pytest — no `async` needed:
+Sync `TestClient` for pytest - no `async` needed:
 
 ```python
 from hawkapi.testing import TestClient
@@ -588,7 +588,7 @@ app = HawkAPI(max_body_size=1024 * 1024)  # 1 MB (default: 10 MB)
 
 ### API Versioning
 
-Version routes declaratively — the version is baked into the path at registration time:
+Version routes declaratively - the version is baked into the path at registration time:
 
 ```python
 from hawkapi import HawkAPI
@@ -676,7 +676,7 @@ async def admin_panel():
     return {"secret": "data"}
 
 @app.get("/public")
-async def public():  # No permissions — no check
+async def public():  # No permissions - no check
     return {"data": "public"}
 ```
 
@@ -684,7 +684,7 @@ Returns `403 Forbidden` with details on missing permissions. Permissions appear 
 
 ### Observability
 
-OpenTelemetry tracing, structured JSON logs, and request metrics — enabled with a single flag:
+OpenTelemetry tracing, structured JSON logs, and request metrics - enabled with a single flag:
 
 ```python
 app = HawkAPI(observability=True)
@@ -692,10 +692,10 @@ app = HawkAPI(observability=True)
 
 That's it. Every request gets:
 
-- **Request ID** — generated or read from `x-request-id` header, echoed back in the response
-- **Structured JSON logs** — timestamp, level, method, path, status, duration, request_id
-- **Metrics** — request count, error count, average duration
-- **Tracing** — OpenTelemetry spans (if `opentelemetry` is installed, zero cost otherwise)
+- **Request ID** - generated or read from `x-request-id` header, echoed back in the response
+- **Structured JSON logs** - timestamp, level, method, path, status, duration, request_id
+- **Metrics** - request count, error count, average duration
+- **Tracing** - OpenTelemetry spans (if `opentelemetry` is installed, zero cost otherwise)
 
 Fine-tune with `ObservabilityConfig`:
 

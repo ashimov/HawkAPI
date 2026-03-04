@@ -97,61 +97,75 @@ class RadixTree:
         self._routes.append(route)
 
     def lookup(self, path: str, method: str) -> LookupResult | None:
-        """Look up a route by path and method. Returns None if not found."""
-        path = path.strip("/")
-        segments = path.split("/") if path else []
+        """Look up a route by path and method. Returns None if not found.
+
+        Iterative implementation with explicit backtrack stack to avoid
+        recursive function call overhead.
+        """
+        # ASGI paths start with /; strip efficiently
+        path_stripped = path[1:] if len(path) > 1 else ""
+        if path_stripped.endswith("/"):
+            path_stripped = path_stripped[:-1]
+        segments = path_stripped.split("/") if path_stripped else []
+        n = len(segments)
         params: dict[str, object] = {}
 
-        result = self._lookup_recursive(self._root, segments, 0, method, params)
-        return result
+        # Each entry: (param_node_to_try, segment_index, params_snapshot)
+        backtrack: list[tuple[RadixNode, int, dict[str, object]]] = []
+        node = self._root
+        idx = 0
 
-    def _lookup_recursive(
-        self,
-        node: RadixNode,
-        segments: list[str],
-        index: int,
-        method: str,
-        params: dict[str, object],
-    ) -> LookupResult | None:
-        """Recursively search the tree for a matching route."""
-        if index == len(segments):
-            # We've consumed all segments — check if this node has a handler
-            if node.handlers and method in node.handlers:
-                return LookupResult(node.handlers[method], params)
-            return None
+        while True:
+            # Advance through segments
+            while idx < n:
+                segment = segments[idx]
 
-        segment = segments[index]
+                # Try static child first (most specific)
+                static_child = node.children.get(segment)
+                if static_child is not None:
+                    # Push param alternative if available for backtracking
+                    if node.param_child is not None:
+                        backtrack.append((node.param_child, idx, params.copy()))
+                    node = static_child
+                    idx += 1
+                    continue
 
-        # 1. Try static child first (most specific match)
-        if segment in node.children:
-            result = self._lookup_recursive(
-                node.children[segment], segments, index + 1, method, params
-            )
-            if result is not None:
-                return result
+                # Try parameter child
+                param_node = node.param_child
+                if param_node is not None:
+                    try:
+                        converted = param_node.param_converter(segment)  # type: ignore[misc]
+                    except (ValueError, TypeError):
+                        break  # Dead end
+                    params[param_node.param_name] = converted  # type: ignore[index]
+                    node = param_node
+                    idx += 1
+                    continue
 
-        # 2. Try parameter child
-        if node.param_child is not None:
-            param_node = node.param_child
-            assert param_node.param_name is not None
-            assert param_node.param_converter is not None
-            try:
-                converted = param_node.param_converter(segment)
-            except (ValueError, TypeError):
-                pass
+                break  # Dead end — no static or param child
             else:
-                old_value = params.get(param_node.param_name)
-                params[param_node.param_name] = converted
-                result = self._lookup_recursive(param_node, segments, index + 1, method, params)
-                if result is not None:
-                    return result
-                # Backtrack
-                if old_value is None:
-                    params.pop(param_node.param_name, None)
-                else:
-                    params[param_node.param_name] = old_value
+                # All segments consumed — check for handler
+                if node.handlers is not None and method in node.handlers:
+                    return LookupResult(node.handlers[method], params)
 
-        return None
+            # Backtrack: try next saved param alternative
+            found = False
+            while backtrack:
+                param_node, bt_idx, bt_params = backtrack.pop()
+                segment = segments[bt_idx]
+                try:
+                    converted = param_node.param_converter(segment)  # type: ignore[misc]
+                except (ValueError, TypeError):
+                    continue
+                params = bt_params
+                params[param_node.param_name] = converted  # type: ignore[index]
+                node = param_node
+                idx = bt_idx + 1
+                found = True
+                break
+
+            if not found:
+                return None
 
     def find_allowed_methods(self, path: str) -> frozenset[str]:
         """Find all HTTP methods registered for a given path (for 405 responses)."""
@@ -180,10 +194,10 @@ class RadixTree:
 
         if node.param_child is not None:
             param_node = node.param_child
-            assert param_node.param_converter is not None
-            try:
-                param_node.param_converter(segment)
-            except (ValueError, TypeError):
-                pass
-            else:
-                self._collect_methods(param_node, segments, index + 1, methods)
+            if param_node.param_converter is not None:
+                try:
+                    param_node.param_converter(segment)
+                except (ValueError, TypeError):
+                    pass
+                else:
+                    self._collect_methods(param_node, segments, index + 1, methods)
