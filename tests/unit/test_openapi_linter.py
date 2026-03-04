@@ -71,9 +71,7 @@ class TestOperationSummaryRequired:
         # /items post has description but no summary — should be fine
         issues = lint(spec)
         matching = [
-            i
-            for i in issues
-            if i.rule == "operation-summary-required" and i.path == "/items"
+            i for i in issues if i.rule == "operation-summary-required" and i.path == "/items"
         ]
         assert matching == []
 

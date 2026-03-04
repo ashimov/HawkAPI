@@ -122,9 +122,7 @@ class CircuitBreakerMiddleware(Middleware):
         circuit.failure_count = 0
         circuit.half_open_calls = 0
 
-    async def _send_503(
-        self, scope: Scope, receive: Receive, send: Send, path: str
-    ) -> None:
+    async def _send_503(self, scope: Scope, receive: Receive, send: Send, path: str) -> None:
         body = encode_response(
             {
                 "type": "https://hawkapi.ashimov.com/errors/circuit-open",

@@ -5,12 +5,10 @@ from __future__ import annotations
 import enum
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 # HTTP methods defined by the OpenAPI specification.
-_HTTP_METHODS = frozenset(
-    {"get", "post", "put", "patch", "delete", "head", "options", "trace"}
-)
+_HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete", "head", "options", "trace"})
 
 
 class Severity(enum.Enum):
@@ -145,19 +143,23 @@ def lint(
         rules = DEFAULT_RULES
 
     issues: list[LintIssue] = []
-    paths = spec.get("paths", {})
+    paths: dict[str, Any] = spec.get("paths", {})
 
-    for path, methods in paths.items():
-        if not isinstance(methods, dict):
+    for path_key in paths:
+        methods_val: Any = paths[path_key]
+        if not isinstance(methods_val, dict):
             continue
-        for method, operation in methods.items():
+        methods = cast(dict[str, Any], methods_val)
+        for method_name in methods:
             # Skip extension fields (x-...) and non-HTTP-method keys.
-            if method not in _HTTP_METHODS:
+            if method_name not in _HTTP_METHODS:
                 continue
-            if not isinstance(operation, dict):
+            operation_val: Any = methods[method_name]
+            if not isinstance(operation_val, dict):
                 continue
+            operation = cast(dict[str, Any], operation_val)
             for rule in rules:
-                issues.extend(rule(spec, path, method, operation))
+                issues.extend(rule(spec, str(path_key), method_name, operation))
 
     return issues
 
@@ -181,26 +183,17 @@ def format_lint_report(issues: list[LintIssue]) -> str:
     if errors:
         lines.append(f"ERRORS ({len(errors)}):")
         for issue in errors:
-            lines.append(
-                f"  [{issue.method.upper()}] {issue.path}: "
-                f"{issue.message} ({issue.rule})"
-            )
+            lines.append(f"  [{issue.method.upper()}] {issue.path}: {issue.message} ({issue.rule})")
 
     if warnings:
         lines.append(f"WARNINGS ({len(warnings)}):")
         for issue in warnings:
-            lines.append(
-                f"  [{issue.method.upper()}] {issue.path}: "
-                f"{issue.message} ({issue.rule})"
-            )
+            lines.append(f"  [{issue.method.upper()}] {issue.path}: {issue.message} ({issue.rule})")
 
     if infos:
         lines.append(f"INFO ({len(infos)}):")
         for issue in infos:
-            lines.append(
-                f"  [{issue.method.upper()}] {issue.path}: "
-                f"{issue.message} ({issue.rule})"
-            )
+            lines.append(f"  [{issue.method.upper()}] {issue.path}: {issue.message} ({issue.rule})")
 
     total = len(issues)
     lines.append("")

@@ -135,9 +135,7 @@ def main(argv: list[str] | None = None) -> None:
     # `hawkapi new` subcommand
     new_parser = subparsers.add_parser("new", help="Create a new HawkAPI project")
     new_parser.add_argument("name", help="Project name")
-    new_parser.add_argument(
-        "--docker", action="store_true", help="Include Dockerfile"
-    )
+    new_parser.add_argument("--docker", action="store_true", help="Include Dockerfile")
 
     args = parser.parse_args(argv)
 

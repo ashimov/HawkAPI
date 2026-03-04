@@ -22,7 +22,7 @@ async def health():
     return {{"status": "ok"}}
 '''
 
-PYPROJECT_TOML = '''\
+PYPROJECT_TOML = """\
 [project]
 name = "{name}"
 version = "0.1.0"
@@ -34,9 +34,9 @@ dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "ruff>=0.8"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-'''
+"""
 
-DOCKERFILE = '''\
+DOCKERFILE = """\
 FROM python:3.12-slim AS base
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app
@@ -45,15 +45,15 @@ RUN uv sync --frozen --no-dev
 COPY . .
 EXPOSE 8000
 CMD ["uv", "run", "hawkapi", "dev", "main:app", "--host", "0.0.0.0"]
-'''
+"""
 
-GITIGNORE = '''\
+GITIGNORE = """\
 __pycache__/
 *.pyc
 .venv/
 dist/
 .ruff_cache/
-'''
+"""
 
 
 def generate_project(project_dir: str, *, name: str, docker: bool = False) -> None:

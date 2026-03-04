@@ -68,12 +68,12 @@ class DebugMiddleware(Middleware):
 
     async def _serve_routes(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Return a JSON list describing every registered route."""
-        inner = self.app
+        inner: Any = self.app
         while hasattr(inner, "app"):
             inner = inner.app
 
         # The innermost app may be a bound method whose __self__ is the HawkAPI
-        target = inner
+        target: Any = inner
         if not hasattr(target, "routes") and inspect.ismethod(target):
             target = target.__self__
 

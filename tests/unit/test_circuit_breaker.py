@@ -163,9 +163,7 @@ async def test_success_resets_failure_count():
         await send({"type": "http.response.start", "status": status, "headers": []})
         await send({"type": "http.response.body", "body": b"ok"})
 
-    mw = CircuitBreakerMiddleware(
-        alternating_app, failure_threshold=5, recovery_timeout=30.0
-    )
+    mw = CircuitBreakerMiddleware(alternating_app, failure_threshold=5, recovery_timeout=30.0)
 
     # Two failures
     await _call(mw)
