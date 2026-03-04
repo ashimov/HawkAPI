@@ -25,6 +25,7 @@ if TYPE_CHECKING:
         detect_breaking_changes,
         generate_openapi,
     )
+    from hawkapi.plugins import Plugin
     from hawkapi.responses import (
         EventSourceResponse,
         FileResponse,
@@ -64,6 +65,8 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "env_field": ("hawkapi.config", "env_field"),
     # middleware
     "Middleware": ("hawkapi.middleware", "Middleware"),
+    # plugins
+    "Plugin": ("hawkapi.plugins", "Plugin"),
     # openapi
     "generate_openapi": ("hawkapi.openapi", "generate_openapi"),
     "detect_breaking_changes": ("hawkapi.openapi", "detect_breaking_changes"),
@@ -161,6 +164,7 @@ __all__ = [
     "ObservabilityMiddleware",
     "Path",
     "PermissionPolicy",
+    "Plugin",
     "PlainTextResponse",
     "Query",
     "RedirectResponse",
