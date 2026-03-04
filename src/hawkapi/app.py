@@ -81,6 +81,7 @@ class HawkAPI(Router):
         self._hooks = HookRegistry()
         self._lifespan_func = lifespan
         self._lifespan_manager = LifespanManager(self._hooks, lifespan)
+        self._plugins: list[Any] = []
         self._permission_policy: Any = None
         self._request_timeout = request_timeout
         self._in_flight = 0
@@ -140,6 +141,12 @@ class HawkAPI(Router):
     def permission_policy(self, policy: Any) -> None:
         self._permission_policy = policy
 
+    # --- Plugin API ---
+
+    def add_plugin(self, plugin: Any) -> None:
+        """Register a plugin that will receive lifecycle hook callbacks."""
+        self._plugins.append(plugin)
+
     def openapi(self, api_version: str | None = None) -> dict[str, Any]:
         """Generate (or return cached) the OpenAPI schema.
 
@@ -149,13 +156,16 @@ class HawkAPI(Router):
 
         cache_key = api_version or "__all__"
         if cache_key not in self._openapi_cache:
-            self._openapi_cache[cache_key] = generate_openapi(
+            spec = generate_openapi(
                 self._collect_routes(),
                 title=self.title,
                 version=self.version,
                 description=self.description,
                 api_version=api_version,
             )
+            for plugin in self._plugins:
+                spec = plugin.on_schema_generated(spec)
+            self._openapi_cache[cache_key] = spec
         import copy
 
         return copy.deepcopy(self._openapi_cache[cache_key])
@@ -167,7 +177,10 @@ class HawkAPI(Router):
     def add_route(self, path: str, handler: Any, **kwargs: Any) -> Route:  # type: ignore[override]
         """Register a route and invalidate cached OpenAPI specs."""
         self._invalidate_openapi_cache()
-        return super().add_route(path, handler, **kwargs)
+        route = super().add_route(path, handler, **kwargs)
+        for plugin in self._plugins:
+            plugin.on_route_registered(route)
+        return route
 
     def include_router(self, router: Router) -> None:
         """Include a sub-router and invalidate cached OpenAPI specs."""

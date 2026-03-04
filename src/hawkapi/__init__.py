@@ -32,6 +32,7 @@ if TYPE_CHECKING:
         generate_openapi,
     )
     from hawkapi.pagination import CursorPage, CursorParams, Page, PaginationParams
+    from hawkapi.plugins import Plugin
     from hawkapi.responses import (
         EventSourceResponse,
         FileResponse,
@@ -88,6 +89,8 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "CursorPage": ("hawkapi.pagination", "CursorPage"),
     "PaginationParams": ("hawkapi.pagination", "PaginationParams"),
     "CursorParams": ("hawkapi.pagination", "CursorParams"),
+    # plugins
+    "Plugin": ("hawkapi.plugins", "Plugin"),
     # openapi
     "generate_openapi": ("hawkapi.openapi", "generate_openapi"),
     "detect_breaking_changes": ("hawkapi.openapi", "detect_breaking_changes"),
@@ -191,6 +194,7 @@ __all__ = [
     "PaginationParams",
     "Path",
     "PermissionPolicy",
+    "Plugin",
     "PlainTextResponse",
     "PrometheusMiddleware",
     "Query",
