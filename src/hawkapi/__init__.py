@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from hawkapi.background import BackgroundTasks
     from hawkapi.config import Settings, env_field
     from hawkapi.middleware import Middleware
+    from hawkapi.middleware.debug import DebugMiddleware
     from hawkapi.observability import ObservabilityConfig, ObservabilityMiddleware
     from hawkapi.openapi import (
         Change,
@@ -63,6 +64,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Settings": ("hawkapi.config", "Settings"),
     "env_field": ("hawkapi.config", "env_field"),
     # middleware
+    "DebugMiddleware": ("hawkapi.middleware.debug", "DebugMiddleware"),
     "Middleware": ("hawkapi.middleware", "Middleware"),
     # openapi
     "generate_openapi": ("hawkapi.openapi", "generate_openapi"),
@@ -143,6 +145,7 @@ __all__ = [
     "Container",
     "Controller",
     "Cookie",
+    "DebugMiddleware",
     "Depends",
     "EventSourceResponse",
     "FileResponse",
