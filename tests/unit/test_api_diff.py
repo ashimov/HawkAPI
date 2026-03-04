@@ -38,7 +38,9 @@ class TestDiffSpecs:
 
 class TestLoadAppSpec:
     def test_load_from_module(self):
-        mod = types.ModuleType("_test_mod")
+        import sys
+
+        mod = types.ModuleType("_test_mod_api_diff")
         app = HawkAPI(openapi_url=None)
 
         @app.get("/hello")
@@ -46,5 +48,9 @@ class TestLoadAppSpec:
             return {"msg": "hi"}
 
         mod.app = app  # type: ignore[attr-defined]
-        spec = _load_app_spec(mod, "app")
-        assert "/hello" in spec["paths"]
+        sys.modules["_test_mod_api_diff"] = mod
+        try:
+            spec = _load_app_spec("_test_mod_api_diff", "app")
+            assert "/hello" in spec["paths"]
+        finally:
+            del sys.modules["_test_mod_api_diff"]
