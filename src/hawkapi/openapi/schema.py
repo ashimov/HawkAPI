@@ -40,11 +40,9 @@ def generate_openapi(
 
         operation, route_security = _build_operation(route, schemas)
 
-        for method in route.methods:
-            method_lower = method.lower()
-            if method_lower == "head":
-                continue  # HEAD is implied by GET
-            paths[path_key][method_lower] = operation
+        methods_to_add = [m.lower() for m in route.methods if m.lower() != "head"]
+        for method_lower in methods_to_add:
+            paths[path_key][method_lower] = operation if len(methods_to_add) <= 1 else {**operation}
 
         if route.tags:
             all_tags.update(route.tags)

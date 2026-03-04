@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-03-04
+
+### Added
+
+- `PrometheusMiddleware` — Prometheus `/metrics` endpoint (extra: `hawkapi[metrics]`)
+- `StructuredLoggingMiddleware` — JSON-structured request/response logs with request ID tracking (extra: `hawkapi[logging]`)
+- `CircuitBreakerMiddleware` — three-state circuit breaker pattern (closed → open → half-open)
+- `TrustedProxyMiddleware` — X-Forwarded-For/Proto/Host handling with IP validation
+- `RequestLimitsMiddleware` — query string and header size limits
+- `DebugMiddleware` — `/_debug/routes` and `/_debug/stats` endpoints for development
+- `/readyz` and `/livez` Kubernetes health probe endpoints
+- Deprecation headers: `Deprecation`, `Sunset`, and `Link` for deprecated routes
+- Pagination helpers: `Page[T]`, `CursorPage[T]`, `PaginationParams`, `CursorParams`
+- OpenAPI `example` support on parameter markers (`Query`, `Path`, `Header`, `Body`, `Cookie`)
+- `hawkapi new` CLI command for project scaffolding
+- `hawkapi check` CLI command with built-in OpenAPI linter
+- `hawkapi changelog` CLI command for changelog generation
+- `hawkapi diff` CLI command for API breaking changes detection
+- Contract smoke test generator
+- DI container introspection and Mermaid diagram generation
+- Plugin API with route registration and schema generation hooks
+- Client SDK generation templates for TypeScript and Python
+- Docker template and deployment guide
+- FastAPI migration guide
+- E2E benchmark suite and GitHub Action
+- PyPI publish workflow (trusted publishing)
+
+### Fixed
+
+- Singleton provider race condition: eager lock initialization + `_UNSET` sentinel for `None` caching
+- `StreamingResponse` now only sends terminal frame on successful completion
+- `CircuitBreakerMiddleware` state transitions protected with `asyncio.Lock`
+- `ObservabilityMiddleware` always records metrics/logs via `try/finally`
+- WebSocket 404: consume `websocket.connect` before sending close frame (ASGI protocol)
+- Security schemes (`HTTPBearer`, `HTTPBasic`, `OAuth2PasswordBearer`) return `WWW-Authenticate` header on 401
+- `MissingCredentialError` propagates `headers` dict to error response
+- Empty bearer/OAuth2 token detection (whitespace-only tokens rejected)
+- `BackgroundTasks` handles `functools.partial` via `getattr(func, "__name__", repr(func))`
+- `Page` division by zero when `size <= 0`
+- `detect_breaking_changes` parameter keying uses `(name, in)` tuple per OpenAPI spec
+- `detect_breaking_changes` resolves `$ref` in response schemas
+- `TrustedProxyMiddleware` validates IP addresses with `ipaddress.ip_address()`
+- `JSONResponse` deduplicates Content-Type header when caller provides one
+- `StructuredLoggingMiddleware` configures structlog only once across instances
+- Radix tree `find_allowed_methods` path normalization matches `lookup()` behavior
+- OpenAPI schema shallow-copies operation dict for multi-method routes
+- Scaffold Dockerfile uses `uvicorn` instead of non-existent `hawkapi run`
+
+### Changed
+
+- Project status upgraded to Production/Stable (PyPI classifier)
+
+### Docs
+
+- Fixed middleware guide: replaced non-existent `handle(call_next)` with `before_request`/`after_response` hooks
+- Fixed middleware table: expanded from 6 to 15 middleware
+- Fixed `StreamingResponse` parameter: `media_type` → `content_type`
+- Removed non-existent `shutdown_drain_timeout` from configuration guide
+- Removed non-existent `Settings.Config` inner class from configuration guide
+- Added `metrics` and `logging` extras to installation guide
+- Added Deployment and Migration from FastAPI pages to MkDocs navigation
+- Fixed README: `credentials.token` → `credentials.credentials`, pagination constructor, cursor parameter name
+
 ## [0.1.0] - 2026-03-03
 
 ### Added
@@ -48,4 +111,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pyright strict mode compliance (0 errors)
 - MkDocs documentation site
 
+[0.1.1]: https://github.com/ashimov/HawkAPI/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/ashimov/HawkAPI/releases/tag/v0.1.0

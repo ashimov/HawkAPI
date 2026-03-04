@@ -70,7 +70,12 @@ class TrustedProxyMiddleware(Middleware):
         # Rewrite client IP from X-Forwarded-For (take leftmost/first IP)
         if forwarded_for:
             real_ip = forwarded_for.split(",")[0].strip()
-            new_scope["client"] = (real_ip, 0)
+            try:
+                ipaddress.ip_address(real_ip)
+            except ValueError:
+                pass
+            else:
+                new_scope["client"] = (real_ip, 0)
 
         # Rewrite scheme from X-Forwarded-Proto
         if forwarded_proto:

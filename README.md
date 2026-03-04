@@ -36,20 +36,6 @@ hawkapi dev app:app
 
 ---
 
-## Why HawkAPI?
-
-Modern Python APIs deserve a framework that's fast by default, not fast with workarounds.
-
-HawkAPI is built from zero on three principles:
-
-**Speed without compromise** - msgspec handles JSON 6-12x faster than Pydantic. Radix tree routes resolve in ~500ns. Large responses serialize 7x faster than FastAPI. These aren't micro-optimizations - they compound under real traffic.
-
-**Zero hidden dependencies** - No Starlette, no Pydantic (unless you want it), no version-pinning headaches. The entire ASGI layer is custom-built. You control the stack.
-
-**DI that works everywhere** - Dependency injection isn't bolted onto the request cycle. Use it in routes, background workers, CLI commands, tests - same container, same lifecycles.
-
----
-
 ## Installation
 
 ```bash
@@ -66,39 +52,11 @@ pip install hawkapi[otel]         # OpenTelemetry tracing
 pip install hawkapi[all]          # Everything
 ```
 
-**Requirements:** Python 3.12+ and msgspec >= 0.19.0. No other runtime dependencies.
+**Requirements:** Python 3.12+ and msgspec >= 0.19.0.
 
 ---
 
 ## Quick Start
-
-### Hello World
-
-```python
-from hawkapi import HawkAPI
-
-app = HawkAPI()
-
-@app.get("/")
-async def hello():
-    return {"message": "Hello, World!"}
-```
-
-Run with the built-in CLI:
-
-```bash
-hawkapi dev app:app
-```
-
-Or with uvicorn:
-
-```bash
-uvicorn app:app --reload
-```
-
-### Routing with Validation
-
-Type annotations drive automatic validation and OpenAPI schema generation:
 
 ```python
 import msgspec
@@ -122,7 +80,7 @@ async def create_user(body: CreateUser) -> UserResponse:
     return UserResponse(id=1, name=body.name, email=body.email)
 ```
 
-Invalid requests get clean [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details responses:
+Type annotations drive validation, serialization, and OpenAPI schema generation. Invalid requests return [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details:
 
 ```json
 {
@@ -136,7 +94,13 @@ Invalid requests get clean [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Pr
 }
 ```
 
-### Path and Query Parameters
+---
+
+## Core Features
+
+### Routing
+
+Radix tree router with typed path parameters (`str`, `int`, `float`, `uuid`), query parameter coercion, and ~500ns lookups:
 
 ```python
 import uuid
@@ -154,31 +118,28 @@ async def search(q: str, limit: int = 10):
     return {"query": q, "limit": limit}
 ```
 
-Supported path parameter types: `str`, `int`, `float`, `uuid`.
+Both `def` and `async def` handlers work. Sync handlers run in a threadpool automatically.
 
-### Sync and Async Handlers
+#### Parameter Markers
 
-Both `def` and `async def` handlers work. Sync handlers run in a threadpool automatically:
+Fine-tune parameter sources with `Body`, `Query`, `Header`, `Cookie`, and `Path`:
 
 ```python
-@app.get("/sync")
-def sync_handler():
-    import time
-    time.sleep(0.1)  # Won't block the event loop
-    return {"mode": "sync"}
+from typing import Annotated
+from hawkapi import Query, Header
 
-@app.get("/async")
-async def async_handler():
-    return {"mode": "async"}
+@app.get("/items")
+async def list_items(
+    q: Annotated[str, Query(alias="search")],
+    x_token: Annotated[str, Header()],
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+):
+    return {"query": q, "token": x_token, "limit": limit}
 ```
-
----
-
-## Features
 
 ### Dependency Injection
 
-Full-featured DI container with three lifecycles:
+Full-featured DI container with three lifecycles — works in routes, background tasks, CLI commands, and tests:
 
 ```python
 from hawkapi import HawkAPI, Container, Depends
@@ -198,42 +159,50 @@ async def get_user(user_id: int, session: Session):
 |-----------|----------|
 | `singleton` | Created once, shared globally |
 | `scoped` | Created once per request |
-| `transient` | Created fresh every time |
+| `transient` | Created fresh every injection |
 
-DI works outside routes too:
-
-```python
-async def cleanup_task():
-    async with container.scope() as scope:
-        session = await scope.resolve(Session)
-        await session.execute("DELETE FROM expired_tokens")
-```
-
-### Generator Dependencies
-
-Dependencies with `yield` for resource lifecycle management - code after `yield` runs as cleanup:
+Generator dependencies with `yield` manage resource lifecycles — cleanup code runs after the handler completes, even on exceptions:
 
 ```python
-from typing import Annotated
-from hawkapi import Depends
-
 async def get_db():
     db = await create_connection()
     try:
-        yield db          # Handler receives db
+        yield db
     finally:
-        await db.close()  # Runs after handler completes
+        await db.close()
 
 @app.get("/users")
 async def list_users(db: Annotated[Connection, Depends(get_db)]):
     return await db.fetch_all("SELECT * FROM users")
 ```
 
-Both sync and async generators work. Multiple generators clean up in reverse order. Cleanup runs even if the handler raises an exception.
+#### DI Introspection
 
-### response_model
+Inspect the container at runtime or export a Mermaid dependency graph:
 
-Filter and validate responses - hide internal fields from API output:
+```python
+from hawkapi.di.introspection import container_graph, to_mermaid
+
+print(container_graph(container))  # JSON-serializable dict of all providers
+print(to_mermaid(container))       # Mermaid graph TD diagram
+```
+
+### OpenAPI Documentation
+
+OpenAPI 3.1 schema auto-generated from type annotations:
+
+| URL | UI |
+|-----|-----|
+| `/docs` | Swagger UI |
+| `/redoc` | ReDoc |
+| `/scalar` | Scalar |
+| `/openapi.json` | Raw JSON schema |
+
+All security schemes appear in the **Authorize** button automatically. Disable with `app = HawkAPI(docs_url=None, openapi_url=None)`.
+
+### Response Model
+
+Filter and validate responses — hide internal fields from API output:
 
 ```python
 class UserFull(msgspec.Struct):
@@ -255,35 +224,29 @@ async def get_user(user_id: int):
 
 Works with both msgspec Structs and Pydantic models.
 
-### OpenAPI Documentation
+### Pagination
 
-OpenAPI 3.1 schema is auto-generated from type annotations and served at:
-
-| URL | UI |
-|-----|-----|
-| `/docs` | Swagger UI |
-| `/redoc` | ReDoc |
-| `/scalar` | Scalar |
-| `/openapi.json` | Raw JSON schema |
-
-All security schemes appear in the **Authorize** button automatically.
-
-Disable with:
+Built-in offset and cursor pagination helpers:
 
 ```python
-app = HawkAPI(docs_url=None, openapi_url=None)
+from hawkapi import Page, PaginationParams, CursorPage, CursorParams
+
+@app.get("/users")
+async def list_users(params: PaginationParams) -> Page[UserOut]:
+    users, total = await db.get_users(offset=params.offset, limit=params.limit)
+    return Page(items=users, total=total, page=params.page, size=params.limit)
+
+@app.get("/feed")
+async def feed(params: CursorParams) -> CursorPage[PostOut]:
+    posts, next_cursor = await db.get_feed(after=params.after, limit=params.limit)
+    return CursorPage(items=posts, next_cursor=next_cursor)
 ```
 
 ### Middleware
 
 ```python
 from hawkapi import Middleware, Request, Response
-from hawkapi.middleware.cors import CORSMiddleware
 
-# Built-in middleware
-app.add_middleware(CORSMiddleware, allow_origins=["*"])
-
-# Custom middleware with hooks
 class AuthMiddleware(Middleware):
     async def before_request(self, request: Request) -> Request | Response:
         token = request.headers.get("authorization")
@@ -301,22 +264,18 @@ class AuthMiddleware(Middleware):
 | `GZipMiddleware` | Response compression (streaming-aware) |
 | `TimingMiddleware` | `Server-Timing` header |
 | `TrustedHostMiddleware` | Host header validation |
+| `TrustedProxyMiddleware` | X-Forwarded-For/Proto/Host from trusted CIDRs |
 | `SecurityHeadersMiddleware` | X-Content-Type-Options, X-Frame-Options, etc. |
 | `RequestIDMiddleware` | `X-Request-ID` header (generates UUID4 if missing) |
 | `HTTPSRedirectMiddleware` | Redirect HTTP to HTTPS |
-| `RateLimitMiddleware` | Per-client rate limiting (token bucket, 429 + Retry-After) |
+| `RateLimitMiddleware` | Token bucket rate limiting (429 + Retry-After) |
+| `RequestLimitsMiddleware` | Max query string / header size enforcement |
+| `CircuitBreakerMiddleware` | Three-state circuit breaker (per-path tracking) |
 | `ErrorHandlerMiddleware` | Structured error handling pipeline |
+| `PrometheusMiddleware` | Prometheus-compatible `/metrics` endpoint |
+| `StructuredLoggingMiddleware` | JSON request/response logs |
+| `DebugMiddleware` | `/_debug/routes` and `/_debug/stats` endpoints |
 | `ObservabilityMiddleware` | All-in-one tracing, structured logs, metrics |
-
-### Rate Limiting
-
-```python
-from hawkapi.middleware import RateLimitMiddleware
-
-app.add_middleware(RateLimitMiddleware, requests_per_second=10.0, burst=20)
-```
-
-Uses a token bucket algorithm. Blocked requests get `429 Too Many Requests` with a `Retry-After` header.
 
 ### Security
 
@@ -327,35 +286,53 @@ auth = HTTPBearer()
 
 @app.get("/protected")
 async def protected(credentials=Depends(auth)):
-    return {"token": credentials.token}
+    return {"token": credentials.credentials}
 ```
 
-#### Built-in Schemes
+Built-in schemes: `HTTPBearer`, `HTTPBasic`, `APIKeyHeader`, `APIKeyQuery`, `APIKeyCookie`, `OAuth2PasswordBearer`.
 
-| Scheme | Description |
-|--------|-------------|
-| `HTTPBearer` | Authorization: Bearer token |
-| `HTTPBasic` | Authorization: Basic base64 |
-| `APIKeyHeader` | API key in a custom header |
-| `APIKeyQuery` | API key in query parameter |
-| `APIKeyCookie` | API key in a cookie |
-| `OAuth2PasswordBearer` | OAuth2 password flow |
-
-All schemes integrate with OpenAPI Authorize automatically.
-
-#### HTTP Basic Example
+#### Declarative Permissions (RBAC)
 
 ```python
-from typing import Annotated
-from hawkapi import HTTPBasic, HTTPBasicCredentials, Depends, HTTPException
+from hawkapi.security import PermissionPolicy
 
-basic = HTTPBasic()
+app.permission_policy = PermissionPolicy(
+    resolver=get_user_permissions,
+    mode="all",  # "all" = require all listed, "any" = require at least one
+)
 
-@app.get("/admin")
-async def admin(creds: Annotated[HTTPBasicCredentials, Depends(basic)]):
-    if creds.username != "admin" or creds.password != "secret":
-        raise HTTPException(401)
-    return {"user": creds.username}
+@app.get("/admin", permissions=["admin:read"])
+async def admin_panel():
+    return {"secret": "data"}
+```
+
+### Responses
+
+```python
+from hawkapi import (
+    JSONResponse, HTMLResponse, PlainTextResponse,
+    RedirectResponse, StreamingResponse, FileResponse,
+    EventSourceResponse, ServerSentEvent,
+)
+
+# Server-Sent Events
+async def events():
+    yield ServerSentEvent(data="connected", event="open")
+    yield ServerSentEvent(data='{"temp": 22.5}', event="reading")
+
+return EventSourceResponse(events())
+```
+
+### WebSocket
+
+```python
+from hawkapi import WebSocket
+
+@app.websocket("/ws")
+async def websocket_handler(ws: WebSocket):
+    await ws.accept()
+    async for message in ws:
+        await ws.send_text(f"Echo: {message}")
 ```
 
 ### HTTPException
@@ -395,76 +372,36 @@ async def handle_value_error(request, exc):
 
 ### Background Tasks
 
-Run tasks after the response is sent:
-
 ```python
 from hawkapi import BackgroundTasks
 
 @app.post("/notify")
 async def notify(tasks: BackgroundTasks):
     tasks.add_task(send_email, to="user@example.com", subject="Hello")
-    tasks.add_task(update_analytics, event="notification_sent")
     return {"status": "queued"}
 ```
 
-Tasks run in order after the response. Failing tasks don't stop subsequent ones.
-
-### Responses
-
-HawkAPI provides specialized response types:
+### Lifecycle Hooks
 
 ```python
-from hawkapi import (
-    JSONResponse,
-    HTMLResponse,
-    PlainTextResponse,
-    RedirectResponse,
-    StreamingResponse,
-    FileResponse,
-    EventSourceResponse,
-    ServerSentEvent,
-)
+@app.on_startup
+async def startup():
+    await db.connect()
 
-# JSON (default for dict/struct returns)
-return JSONResponse({"key": "value"}, status_code=200)
-
-# HTML
-return HTMLResponse("<h1>Hello</h1>")
-
-# File download
-return FileResponse("report.pdf")
-
-# Streaming
-async def generate():
-    for i in range(100):
-        yield f"chunk {i}\n".encode()
-
-return StreamingResponse(generate(), content_type="text/plain")
-
-# Server-Sent Events
-async def events():
-    yield ServerSentEvent(data="connected", event="open")
-    yield ServerSentEvent(data='{"temp": 22.5}', event="reading")
-
-return EventSourceResponse(events())
+@app.on_shutdown
+async def shutdown():
+    await db.disconnect()
 ```
 
-### Static Files
+### Body Size Limits
 
 ```python
-from hawkapi import StaticFiles
+app = HawkAPI(max_body_size=1024 * 1024)  # 1 MB (default: 10 MB)
 
-app.mount("/static", StaticFiles(directory="static"))
-
-# HTML mode - serves index.html for directories
-app.mount("/site", StaticFiles(directory="public", html=True))
+# Returns 413 Payload Too Large when exceeded
 ```
 
-Path traversal attacks are blocked automatically.
-
-### Routers
-
-Organize routes into modules:
+### Routers and Controllers
 
 ```python
 from hawkapi import Router
@@ -475,15 +412,10 @@ api = Router(prefix="/api/v1", tags=["api"])
 async def health():
     return {"status": "ok"}
 
-@api.get("/version")
-async def version():
-    return {"version": "1.0.0"}
-
 app.include_router(api)
-# GET /api/v1/health -> {"status": "ok"}
 ```
 
-### Class-Based Controllers
+Class-based controllers:
 
 ```python
 from hawkapi import Controller, get, post
@@ -503,98 +435,109 @@ class UserController(Controller):
 app.include_controller(UserController)
 ```
 
-### WebSocket
+### Static Files
 
 ```python
-from hawkapi import WebSocket
+from hawkapi import StaticFiles
 
-@app.websocket("/ws")
-async def websocket_handler(ws: WebSocket):
-    await ws.accept()
-    async for message in ws:
-        await ws.send_text(f"Echo: {message}")
+app.mount("/static", StaticFiles(directory="static"))
+app.mount("/site", StaticFiles(directory="public", html=True))
 ```
 
-### Lifecycle Hooks
+---
+
+## Production Features
+
+### Health Probes
+
+Built-in Kubernetes-ready health endpoints:
 
 ```python
-@app.on_startup
-async def startup():
-    print("Starting up...")
+app = HawkAPI(readyz_url="/readyz", livez_url="/livez")
 
-@app.on_shutdown
-async def shutdown():
-    print("Shutting down...")
+@app.readiness_check("database")
+async def check_db():
+    return await db.ping()
 ```
 
-### Configuration
+`/livez` always returns 200. `/readyz` runs all registered checks and returns 200 or 503 with aggregated results.
+
+### Circuit Breaker
 
 ```python
-from hawkapi import Settings, env_field
+from hawkapi.middleware.circuit_breaker import CircuitBreakerMiddleware
 
-class AppSettings(Settings):
-    db_url: str = env_field("DATABASE_URL")
-    debug: bool = env_field("DEBUG", default=False)
-    port: int = env_field("PORT", default=8000)
-    allowed_hosts: list = env_field("ALLOWED_HOSTS", default=["*"])
-
-settings = AppSettings.load(profile="production")
+app.add_middleware(
+    CircuitBreakerMiddleware,
+    failure_threshold=5,
+    recovery_timeout=30.0,
+    half_open_max_calls=2,
+)
 ```
 
-Supports `.env` files and environment profiles (`.env.development`, `.env.production`).
+Three-state circuit breaker (CLOSED → OPEN → HALF_OPEN) with per-path tracking. Returns 503 with `application/problem+json` when the circuit is open.
 
-### Testing
-
-Sync `TestClient` for pytest - no `async` needed:
+### Trusted Proxy
 
 ```python
-from hawkapi.testing import TestClient
+from hawkapi.middleware.trusted_proxy import TrustedProxyMiddleware
 
-client = TestClient(app)
-
-def test_hello():
-    response = client.get("/")
-    assert response.status_code == 200
-    assert response.json()["message"] == "Hello, World!"
-
-def test_create_user():
-    response = client.post("/users", json={
-        "name": "Alice",
-        "email": "alice@example.com",
-        "age": 30,
-    })
-    assert response.status_code == 201
+app.add_middleware(
+    TrustedProxyMiddleware,
+    trusted_proxies=["10.0.0.0/8", "172.16.0.0/12"],
+)
 ```
 
-#### DI Overrides for Tests
+Extracts real client IP, scheme, and host from `X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host` — only from trusted CIDR ranges.
+
+### Request Limits
 
 ```python
-from hawkapi.testing import override
+from hawkapi.middleware.request_limits import RequestLimitsMiddleware
 
-with override(app, Database, mock_db):
-    response = client.get("/users/1")
-    assert response.status_code == 200
+app.add_middleware(
+    RequestLimitsMiddleware,
+    max_query_length=2048,
+    max_headers_count=100,
+    max_header_size=8192,
+)
 ```
 
-### Body Size Limits
+Rejects oversized requests at the ASGI scope level before body parsing. Returns 414 (query) or 431 (headers).
 
-Protect against oversized payloads:
+### Deprecation Headers
+
+Mark routes as deprecated with RFC 8594 Sunset headers:
 
 ```python
-app = HawkAPI(max_body_size=1024 * 1024)  # 1 MB (default: 10 MB)
-
-# Returns 413 Payload Too Large when exceeded
+@app.get("/v1/users", deprecated=True, sunset="2025-06-01", deprecation_link="https://docs.example.com/migration")
+async def old_users():
+    return []
 ```
 
-### API Versioning
+Adds `Deprecation: true`, `Sunset`, and `Link` headers to responses automatically.
 
-Version routes declaratively - the version is baked into the path at registration time:
+### Observability
 
 ```python
-from hawkapi import HawkAPI
+app = HawkAPI(observability=True)
+```
 
-app = HawkAPI()
+Every request gets: request ID, structured JSON logs, metrics, and OpenTelemetry spans (if installed).
 
+### Serverless Mode
+
+```python
+app = HawkAPI(serverless=True)
+```
+
+Disables documentation routes to minimize cold start. Combined with lazy imports, heavy modules load only on first use.
+
+---
+
+## API Versioning
+
+```python
 @app.get("/users", version="v1")
 async def list_users_v1():
     return [{"id": 1, "name": "Alice"}]
@@ -610,7 +553,6 @@ async def list_users_v2():
 Use `VersionRouter` to scope an entire router to a version:
 
 ```python
-from hawkapi import Router
 from hawkapi.routing import VersionRouter
 
 v2 = VersionRouter("v2", prefix="/api")
@@ -619,21 +561,14 @@ v2 = VersionRouter("v2", prefix="/api")
 async def list_users():  # -> /v2/api/users
     return []
 
-@v2.get("/items")
-async def list_items():  # -> /v2/api/items
-    return []
-
 app.include_router(v2)
 ```
 
-Generate per-version OpenAPI specs:
+---
 
-```python
-full_spec = app.openapi()              # All routes
-v1_spec = app.openapi(api_version="v1")  # Only v1 routes
-```
+## API Governance
 
-#### Breaking Changes Detector
+### Breaking Changes Detection
 
 Compare two OpenAPI specs and detect breaking changes:
 
@@ -641,154 +576,157 @@ Compare two OpenAPI specs and detect breaking changes:
 from hawkapi.openapi import detect_breaking_changes, format_report
 
 old_spec = app.openapi(api_version="v1")
-# ... deploy changes ...
+# ... make changes ...
 new_spec = app.openapi(api_version="v1")
 
 changes = detect_breaking_changes(old_spec, new_spec)
 print(format_report(changes))
-# BREAKING CHANGES (1):
-#   - [GET] /v1/users: Parameter 'page' was removed
 ```
 
 Detects: path removed, method removed, required parameter added, parameter removed, parameter type changed, response field removed, status code changed.
 
-### Declarative Permissions (RBAC)
-
-Attach permissions directly to routes and enforce them with a pluggable policy:
+### OpenAPI Linter
 
 ```python
-from hawkapi import HawkAPI, Request
-from hawkapi.security import PermissionPolicy
+from hawkapi.openapi.linter import lint, format_lint_report
 
-async def get_user_permissions(request: Request) -> set[str]:
-    token = request.headers.get("authorization", "")
-    user = await decode_token(token)
-    return user.permissions  # e.g. {"admin:read", "user:read"}
-
-app = HawkAPI()
-app.permission_policy = PermissionPolicy(
-    resolver=get_user_permissions,
-    mode="all",  # "all" = require all listed, "any" = require at least one
-)
-
-@app.get("/admin", permissions=["admin:read"])
-async def admin_panel():
-    return {"secret": "data"}
-
-@app.get("/public")
-async def public():  # No permissions - no check
-    return {"data": "public"}
+issues = lint(app.openapi())
+print(format_lint_report(issues))
 ```
 
-Returns `403 Forbidden` with details on missing permissions. Permissions appear as `x-permissions` in the OpenAPI spec.
+Built-in rules: `operation-id-required`, `operation-summary-required`, `response-description-required`. Custom rules are simple functions.
 
-### Observability
-
-OpenTelemetry tracing, structured JSON logs, and request metrics - enabled with a single flag:
+### Changelog Generator
 
 ```python
-app = HawkAPI(observability=True)
+from hawkapi.openapi import detect_breaking_changes
+from hawkapi.openapi.changelog import generate_changelog
+
+changes = detect_breaking_changes(old_spec, new_spec)
+print(generate_changelog(changes))
 ```
 
-That's it. Every request gets:
+### Contract Smoke Tests
 
-- **Request ID** - generated or read from `x-request-id` header, echoed back in the response
-- **Structured JSON logs** - timestamp, level, method, path, status, duration, request_id
-- **Metrics** - request count, error count, average duration
-- **Tracing** - OpenTelemetry spans (if `opentelemetry` is installed, zero cost otherwise)
-
-Fine-tune with `ObservabilityConfig`:
+Auto-generate test cases from your OpenAPI schema:
 
 ```python
-from hawkapi.observability import ObservabilityConfig
+from hawkapi.testing.contract import generate_contract_tests
 
-app = HawkAPI(
-    observability=ObservabilityConfig(
-        enable_tracing=False,   # Skip OTel spans
-        enable_logging=True,
-        enable_metrics=True,
-        log_level="DEBUG",
-        service_name="my-api",
-        request_id_header="x-trace-id",
-    )
-)
+tests = generate_contract_tests(app)
+for t in tests:
+    response = client.request(t.method, t.path)
+    assert response.status_code == t.expected_status
 ```
 
-Install OTel support:
+---
 
-```bash
-pip install hawkapi[otel]
-```
+## Plugin API
 
-### Serverless Mode
-
-Optimized for AWS Lambda, Google Cloud Functions, and similar environments:
+Extend HawkAPI behavior with plugins:
 
 ```python
-app = HawkAPI(serverless=True)
+from hawkapi.plugins import Plugin
+
+class AuditPlugin(Plugin):
+    def on_route_registered(self, route):
+        print(f"Route registered: {route.path}")
+        return route
+
+    def on_schema_generated(self, spec):
+        spec["info"]["x-audited"] = True
+        return spec
+
+app.add_plugin(AuditPlugin())
 ```
 
-Serverless mode disables all documentation routes (`/docs`, `/redoc`, `/scalar`, `/openapi.json`) to eliminate unnecessary route registration and imports at startup.
+---
 
-Combined with lazy imports in the package (heavy modules like OpenAPI schema generation, UI templates, and WebSocket are loaded on first use, not at import time), this minimizes cold start overhead.
-
-### Deprecated Routes
-
-Mark endpoints as deprecated in the OpenAPI schema:
-
-```python
-@app.get("/v1/users", deprecated=True)
-async def old_users():
-    return []
-
-@app.get("/v2/users")
-async def new_users():
-    return []
-```
-
-### CLI
+## CLI
 
 ```bash
 # Development server with auto-reload
 hawkapi dev app:app
-
-# Custom host and port
 hawkapi dev app:app --host 0.0.0.0 --port 3000
 
-# Disable auto-reload
-hawkapi dev app:app --no-reload
+# Detect API breaking changes
+hawkapi diff app:app --base openapi-v1.json
+
+# Lint OpenAPI spec
+hawkapi check app:app
+
+# Generate API changelog
+hawkapi changelog app:app --base openapi-v1.json
+
+# Scaffold a new project
+hawkapi new myproject
+hawkapi new myproject --docker
 ```
 
-Requires `pip install hawkapi[uvicorn]`.
+---
+
+## Configuration
+
+```python
+from hawkapi import Settings, env_field
+
+class AppSettings(Settings):
+    db_url: str = env_field("DATABASE_URL")
+    debug: bool = env_field("DEBUG", default=False)
+    port: int = env_field("PORT", default=8000)
+    allowed_hosts: list = env_field("ALLOWED_HOSTS", default=["*"])
+
+settings = AppSettings.load(profile="production")
+```
+
+Supports `.env` files and environment profiles (`.env.development`, `.env.production`).
+
+---
+
+## Testing
+
+Sync `TestClient` for pytest — no `async` needed:
+
+```python
+from hawkapi.testing import TestClient, override
+
+client = TestClient(app)
+
+def test_hello():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json()["message"] == "Hello, World!"
+
+def test_with_mock_db():
+    with override(app, Database, mock_db):
+        response = client.get("/users/1")
+        assert response.status_code == 200
+```
 
 ---
 
 ## Benchmarks
 
-Tested on Apple M3 Pro, Python 3.13, msgspec 0.20.
+Tested on Apple M3 Pro, Python 3.13, msgspec 0.20. ASGI-level benchmarks (no HTTP server overhead — pure framework performance).
 
-### HawkAPI vs FastAPI
+### Request/Response
 
-ASGI-level benchmarks (no HTTP server overhead):
+| Scenario | Latency | Throughput |
+| -------- | ------- | ---------- |
+| Simple JSON (`GET /ping`) | 35 us | ~28,500 req/s |
+| Path param (`GET /users/42`) | 39 us | ~25,600 req/s |
+| Body decode (`POST /items`) | 40 us | ~25,000 req/s |
+| Large response (100 items) | 57 us | ~17,500 req/s |
 
-| Scenario | HawkAPI | FastAPI | Speedup |
-|----------|---------|---------|---------|
-| Simple JSON (`GET /ping`) | 35 us | 43 us | **1.3x** |
-| Path param (`GET /users/42`) | 39 us | 55 us | **1.4x** |
-| Body decode (`POST /items`) | 40 us | 60 us | **1.5x** |
-| Large response (100 items) | 57 us | 417 us | **7.3x** |
+### Serialization
 
-Average: **2.9x faster** than FastAPI.
+| Payload | Ops/sec | vs stdlib json |
+| ------- | ------- | -------------- |
+| Small dict (56 bytes) | 13.0M | **12.2x** |
+| 100-item list (8.1 KB) | 189K | **6.0x** |
+| 1000-item list (198 KB) | 8.7K | **6.1x** |
 
-### Serialization vs stdlib json
-
-| Payload | HawkAPI (msgspec) | stdlib json | Speedup |
-|---------|-------------------|-------------|---------|
-| Small dict (56 bytes) | 13.0M ops/sec | 1.1M ops/sec | **12.2x** |
-| 100-item list (8.1 KB) | 189K ops/sec | 32K ops/sec | **6.0x** |
-| 1000-item list (198 KB) | 8.7K ops/sec | 1.4K ops/sec | **6.1x** |
-
-### Routing
+### Radix Tree Routing
 
 Radix tree with 48 registered routes:
 
@@ -800,96 +738,10 @@ Radix tree with 48 registered routes:
 Run benchmarks yourself:
 
 ```bash
+python benchmarks/bench_request_response.py
+python benchmarks/bench_serialization.py
+python benchmarks/bench_routing.py
 python benchmarks/bench_vs_fastapi.py
-```
-
----
-
-## Project Structure
-
-```text
-src/hawkapi/
-    app.py              # ASGI application core
-    cli.py              # CLI tool (hawkapi dev)
-    exceptions.py       # HTTPException with Problem Details
-    background.py       # BackgroundTasks
-    staticfiles.py      # Static file serving
-    routing/
-        router.py           # Router with prefix/tags
-        route.py            # Route dataclass
-        version_router.py   # VersionRouter (auto version prefix)
-        _radix_tree.py      # Radix tree for O(path) lookups
-        controllers.py      # Class-based controllers
-        param_converters.py # int/float/uuid converters
-    requests/
-        request.py      # Request with lazy parsing
-        headers.py      # Case-insensitive header access
-        query_params.py # Query string parsing
-        form_data.py    # Multipart and URL-encoded forms
-        state.py        # Request state container
-    responses/
-        response.py     # Base Response
-        json.py         # JSONResponse
-        html.py         # HTMLResponse
-        streaming.py    # StreamingResponse
-        file_response.py    # FileResponse
-        sse.py          # Server-Sent Events
-    middleware/
-        _pipeline.py        # Middleware pipeline builder
-        base.py             # Middleware base class with hooks
-        cors.py             # CORS
-        gzip.py             # GZip compression
-        timing.py           # Server-Timing header
-        trusted_host.py     # Host validation
-        security_headers.py # Security headers
-        request_id.py       # X-Request-ID
-        https_redirect.py   # HTTP -> HTTPS
-        rate_limit.py       # Token bucket rate limiter
-        error_handler.py    # Error handling pipeline
-    di/
-        container.py    # DI container
-        depends.py      # Depends() marker
-        provider.py     # Singleton/scoped/transient providers
-        resolver.py     # Parameter resolver with sub-deps
-        scope.py        # Request-scoped container
-    validation/
-        decoder.py      # Cached msgspec JSON decoders
-        constraints.py  # Body, Query, Header, Cookie, Path markers
-        errors.py       # RFC 9457 validation errors
-    serialization/
-        encoder.py      # msgspec JSON encoder
-        negotiation.py  # Content negotiation
-    openapi/
-        schema.py           # OpenAPI 3.1 schema generation
-        breaking_changes.py # Breaking changes detector
-        inspector.py        # Type-to-schema conversion
-        models.py           # OpenAPI spec models
-        ui.py               # Swagger/ReDoc/Scalar HTML
-    websocket/
-        connection.py   # WebSocket connection handler
-    security/
-        base.py         # SecurityScheme base
-        permissions.py  # Declarative RBAC/permissions
-        api_key.py      # API Key (header/query/cookie)
-        http_bearer.py  # HTTP Bearer
-        http_basic.py   # HTTP Basic
-        oauth2.py       # OAuth2 Password Bearer
-    observability/
-        config.py       # ObservabilityConfig
-        middleware.py    # ObservabilityMiddleware
-        logger.py       # Structured JSON logger
-        tracing.py      # Lazy OpenTelemetry integration
-        metrics.py      # In-memory metrics collector
-    config/
-        settings.py     # Settings with env binding
-        profiles.py     # Environment profiles
-        env.py          # .env file parser
-    testing/
-        client.py       # Synchronous TestClient
-        overrides.py    # DI override context manager
-        plugin.py       # pytest plugin
-    _compat/
-        pydantic_adapter.py  # Optional Pydantic v2 support
 ```
 
 ---
@@ -897,21 +749,15 @@ src/hawkapi/
 ## Development
 
 ```bash
-# Clone and install
 git clone https://github.com/ashimov/HawkAPI.git
-cd hawkapi
+cd HawkAPI
 pip install -e ".[dev]"
 
-# Run tests (696 tests, 95% coverage)
+# Run tests (816 tests)
 pytest
 
-# With coverage report
-pytest --cov=hawkapi --cov-report=term-missing
-
-# Lint
+# Lint and type check
 ruff check src/ tests/
-
-# Type check (strict mode, 0 errors)
 pyright src/
 ```
 

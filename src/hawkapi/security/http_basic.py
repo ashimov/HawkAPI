@@ -36,28 +36,31 @@ class HTTPBasic(SecurityScheme):
 
     async def __call__(self, request: Request) -> HTTPBasicCredentials | None:
         """Extract and decode Basic credentials from the request."""
+        _headers = {"WWW-Authenticate": "Basic"}
         auth = request.headers.get("authorization")
         if auth is None:
             if self.auto_error:
-                raise missing_credential_error("Missing Authorization header")
+                raise missing_credential_error("Missing Authorization header", headers=_headers)
             return None
 
         parts = auth.split(" ", 1)
         if len(parts) != 2 or parts[0].lower() != "basic":
             if self.auto_error:
-                raise missing_credential_error("Invalid Authorization header format")
+                raise missing_credential_error(
+                    "Invalid Authorization header format", headers=_headers
+                )
             return None
 
         try:
             decoded = base64.b64decode(parts[1]).decode("utf-8")
         except Exception as exc:
             if self.auto_error:
-                raise missing_credential_error("Invalid base64 encoding") from exc
+                raise missing_credential_error("Invalid base64 encoding", headers=_headers) from exc
             return None
 
         if ":" not in decoded:
             if self.auto_error:
-                raise missing_credential_error("Invalid credentials format")
+                raise missing_credential_error("Invalid credentials format", headers=_headers)
             return None
 
         username, _, password = decoded.partition(":")

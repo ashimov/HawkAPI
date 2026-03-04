@@ -93,12 +93,15 @@ class MissingCredentialError(Exception):
     Caught by HawkAPI's core handler and converted to a 401 response.
     """
 
-    def __init__(self, detail: str) -> None:
+    def __init__(self, detail: str, *, headers: dict[str, str] | None = None) -> None:
         self.detail = detail
         self.status_code = 401
+        self.headers = headers or {}
         super().__init__(detail)
 
 
-def missing_credential_error(detail: str) -> MissingCredentialError:
+def missing_credential_error(
+    detail: str, *, headers: dict[str, str] | None = None
+) -> MissingCredentialError:
     """Create a MissingCredentialError with the given detail message."""
-    return MissingCredentialError(detail)
+    return MissingCredentialError(detail, headers=headers)

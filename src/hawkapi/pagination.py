@@ -61,7 +61,7 @@ class Page[T](msgspec.Struct):
     pages: int = 0
 
     def __post_init__(self) -> None:
-        if self.total == 0:
+        if self.total == 0 or self.size <= 0:
             object.__setattr__(self, "pages", 0)
         else:
             object.__setattr__(self, "pages", math.ceil(self.total / self.size))

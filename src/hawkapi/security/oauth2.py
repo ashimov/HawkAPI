@@ -28,16 +28,19 @@ class OAuth2PasswordBearer(SecurityScheme):
 
     async def __call__(self, request: Request) -> str | None:
         """Extract the Bearer token string from the request."""
+        _headers = {"WWW-Authenticate": "Bearer"}
         auth = request.headers.get("authorization")
         if auth is None:
             if self.auto_error:
-                raise missing_credential_error("Not authenticated")
+                raise missing_credential_error("Not authenticated", headers=_headers)
             return None
 
         parts = auth.split(" ", 1)
-        if len(parts) != 2 or parts[0].lower() != "bearer":
+        if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1].strip():
             if self.auto_error:
-                raise missing_credential_error("Invalid authentication credentials")
+                raise missing_credential_error(
+                    "Invalid authentication credentials", headers=_headers
+                )
             return None
 
         return parts[1]

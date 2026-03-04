@@ -21,6 +21,8 @@ class StructuredLoggingMiddleware(Middleware):
     Requires: ``pip install hawkapi[logging]``
     """
 
+    _configured: bool = False
+
     def __init__(
         self,
         app: ASGIApp,
@@ -34,16 +36,18 @@ class StructuredLoggingMiddleware(Middleware):
         self._request_id_header = request_id_header.lower().encode("latin-1")
         self._log_level = log_level
 
-        structlog.configure(
-            processors=[
-                structlog.processors.TimeStamper(fmt="iso"),
-                structlog.processors.add_log_level,
-                structlog.processors.JSONRenderer(),
-            ],
-            wrapper_class=structlog.BoundLogger,
-            logger_factory=structlog.PrintLoggerFactory(),
-            cache_logger_on_first_use=True,
-        )
+        if not StructuredLoggingMiddleware._configured:
+            structlog.configure(
+                processors=[
+                    structlog.processors.TimeStamper(fmt="iso"),
+                    structlog.processors.add_log_level,
+                    structlog.processors.JSONRenderer(),
+                ],
+                wrapper_class=structlog.BoundLogger,
+                logger_factory=structlog.PrintLoggerFactory(),
+                cache_logger_on_first_use=True,
+            )
+            StructuredLoggingMiddleware._configured = True
         self._logger: Any = structlog.get_logger("hawkapi")
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:

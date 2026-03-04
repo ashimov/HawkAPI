@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "hawkapi"
-version = "0.1.0"
+version = "0.1.1"
 description = "High-performance Python web framework — faster alternative to FastAPI"
 readme = "README.md"
 license = "MIT"
@@ -15,7 +15,7 @@ authors = [
 ]
 keywords = ["web", "framework", "async", "api", "rest", "asgi", "msgspec"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Framework :: AsyncIO",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",

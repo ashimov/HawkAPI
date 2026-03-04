@@ -9,6 +9,7 @@ If the probe succeeds the circuit closes; if it fails the circuit re-opens.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 
@@ -45,6 +46,7 @@ class CircuitBreakerMiddleware(Middleware):
         self.recovery_timeout = recovery_timeout
         self.half_open_max_calls = half_open_max_calls
         self._circuits: dict[str, _CircuitState] = {}
+        self._lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
     # ASGI entry point
@@ -56,28 +58,29 @@ class CircuitBreakerMiddleware(Middleware):
             return
 
         path: str = scope.get("path", "/")
-        circuit = self._circuits.get(path)
-        if circuit is None:
-            circuit = _CircuitState()
-            self._circuits[path] = circuit
 
-        # --- OPEN state ---
-        if circuit.state == "OPEN":
-            elapsed = time.monotonic() - circuit.opened_at
-            if elapsed >= self.recovery_timeout:
-                # Transition to HALF_OPEN — allow a probe request
-                circuit.state = "HALF_OPEN"
-                circuit.half_open_calls = 0
-            else:
-                await self._send_503(scope, receive, send, path)
-                return
+        async with self._lock:
+            circuit = self._circuits.get(path)
+            if circuit is None:
+                circuit = _CircuitState()
+                self._circuits[path] = circuit
 
-        # --- HALF_OPEN state: limit concurrent probes ---
-        if circuit.state == "HALF_OPEN":
-            if circuit.half_open_calls >= self.half_open_max_calls:
-                await self._send_503(scope, receive, send, path)
-                return
-            circuit.half_open_calls += 1
+            # --- OPEN state ---
+            if circuit.state == "OPEN":
+                elapsed = time.monotonic() - circuit.opened_at
+                if elapsed >= self.recovery_timeout:
+                    circuit.state = "HALF_OPEN"
+                    circuit.half_open_calls = 0
+                else:
+                    await self._send_503(scope, receive, send, path)
+                    return
+
+            # --- HALF_OPEN state: limit concurrent probes ---
+            if circuit.state == "HALF_OPEN":
+                if circuit.half_open_calls >= self.half_open_max_calls:
+                    await self._send_503(scope, receive, send, path)
+                    return
+                circuit.half_open_calls += 1
 
         # --- Forward to inner app, capturing the status code ---
         status_code: int | None = None
@@ -91,14 +94,16 @@ class CircuitBreakerMiddleware(Middleware):
         try:
             await self.app(scope, receive, wrapped_send)
         except Exception:
-            self._record_failure(circuit)
+            async with self._lock:
+                self._record_failure(circuit)
             raise
 
         # --- Evaluate result ---
-        if status_code is not None and status_code >= 500:
-            self._record_failure(circuit)
-        elif status_code is not None:
-            self._record_success(circuit)
+        async with self._lock:
+            if status_code is not None and status_code >= 500:
+                self._record_failure(circuit)
+            elif status_code is not None:
+                self._record_success(circuit)
 
     # ------------------------------------------------------------------
     # Internal helpers

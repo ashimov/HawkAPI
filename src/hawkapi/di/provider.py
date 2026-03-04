@@ -17,6 +17,9 @@ class Lifecycle(Enum):
     TRANSIENT = "transient"  # New instance every time
 
 
+_UNSET = object()
+
+
 class Provider:
     """Wraps a factory function with lifecycle metadata."""
 
@@ -33,18 +36,16 @@ class Provider:
         self.factory = factory
         self.lifecycle = lifecycle
         self.name = name
-        self._singleton_instance: Any = None
-        self._lock: asyncio.Lock | None = None
+        self._singleton_instance: Any = _UNSET
+        self._lock: asyncio.Lock = asyncio.Lock()
 
     async def resolve(self, resolver: Callable[..., Any] | None = None) -> Any:
         """Resolve this provider. For singletons, returns cached instance."""
         if self.lifecycle == Lifecycle.SINGLETON:
-            if self._singleton_instance is not None:
+            if self._singleton_instance is not _UNSET:
                 return self._singleton_instance
-            if self._lock is None:
-                self._lock = asyncio.Lock()
             async with self._lock:
-                if self._singleton_instance is not None:
+                if self._singleton_instance is not _UNSET:
                     return self._singleton_instance
                 self._singleton_instance = await self._create(resolver)
                 return self._singleton_instance

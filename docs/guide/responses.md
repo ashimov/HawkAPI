@@ -68,7 +68,7 @@ async def generate():
 
 @app.get("/stream")
 async def stream():
-    return StreamingResponse(generate(), media_type="text/plain")
+    return StreamingResponse(generate(), content_type="text/plain")
 ```
 
 ## Server-Sent Events

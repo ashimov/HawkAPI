@@ -169,8 +169,10 @@ class RadixTree:
 
     def find_allowed_methods(self, path: str) -> frozenset[str]:
         """Find all HTTP methods registered for a given path (for 405 responses)."""
-        path = path.strip("/")
-        segments = path.split("/") if path else []
+        path_stripped = path[1:] if len(path) > 1 else ""
+        if path_stripped.endswith("/"):
+            path_stripped = path_stripped[:-1]
+        segments = path_stripped.split("/") if path_stripped else []
         methods: set[str] = set()
         self._collect_methods(self._root, segments, 0, methods)
         return frozenset(methods)

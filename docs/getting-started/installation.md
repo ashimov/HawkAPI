@@ -19,6 +19,8 @@ pip install hawkapi
 | `uvloop` | uvloop event loop |
 | `uvicorn` | Uvicorn ASGI server |
 | `otel` | OpenTelemetry tracing |
+| `metrics` | Prometheus metrics |
+| `logging` | Structured logging (structlog) |
 | `all` | All of the above |
 
 ```bash

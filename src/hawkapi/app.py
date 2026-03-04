@@ -405,8 +405,10 @@ class HawkAPI(Router):
         entry = self._ws_routes.get(path)
 
         if entry is None:
-            # No WebSocket handler registered — close immediately
-            await send({"type": "websocket.close", "code": 4004})
+            # No WebSocket handler registered — consume connect then close
+            message = await receive()
+            if message["type"] == "websocket.connect":
+                await send({"type": "websocket.close", "code": 4004})
             return
 
         handler, permissions = entry
@@ -632,6 +634,7 @@ class HawkAPI(Router):
                     }
                 ),
                 status_code=401,
+                headers=exc.headers,
                 content_type="application/problem+json",
             )
         except RequestEntityTooLarge as exc:
@@ -657,7 +660,7 @@ class HawkAPI(Router):
                 try:
                     if inspect.isasyncgen(gen):
                         with contextlib.suppress(StopAsyncIteration):
-                            await gen.__anext__()
+                            await anext(gen)
                     else:
                         with contextlib.suppress(StopIteration):
                             next(gen)

@@ -37,5 +37,5 @@ class BackgroundTasks:
                 if inspect.isawaitable(result):
                     await result
             except Exception:
-                logger.exception("Background task %s failed", func.__name__)
+                logger.exception("Background task %s failed", getattr(func, "__name__", repr(func)))
         self._tasks.clear()

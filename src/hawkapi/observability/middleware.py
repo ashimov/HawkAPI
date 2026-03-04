@@ -74,51 +74,52 @@ class ObservabilityMiddleware(Middleware):
             await send(message)
 
         # Tracing — only catch span setup errors, never swallow app errors
-        if self.config.enable_tracing:
-            try:
-                from hawkapi.observability.tracing import start_span
+        try:
+            if self.config.enable_tracing:
+                try:
+                    from hawkapi.observability.tracing import start_span
 
-                ctx = start_span(
-                    f"{method} {path}",
-                    attributes={"http.method": method, "http.target": path},
-                )
-            except Exception:
-                logger.debug("Tracing setup error, falling back", exc_info=True)
-                ctx = None
+                    ctx = start_span(
+                        f"{method} {path}",
+                        attributes={"http.method": method, "http.target": path},
+                    )
+                except Exception:
+                    logger.debug("Tracing setup error, falling back", exc_info=True)
+                    ctx = None
 
-            if ctx is not None:
-                with ctx:
+                if ctx is not None:
+                    with ctx:
+                        await self.app(scope, receive, observability_send)
+                else:
                     await self.app(scope, receive, observability_send)
             else:
                 await self.app(scope, receive, observability_send)
-        else:
-            await self.app(scope, receive, observability_send)
+        finally:
+            duration = time.monotonic() - start
 
-        duration = time.monotonic() - start
+            # Metrics — wrapped so failures don't affect the response
+            if self.config.enable_metrics:
+                try:
+                    self.metrics.record_request(method, path, status_code, duration)
+                except Exception:
+                    logger.debug("Metrics recording error", exc_info=True)
 
-        # Metrics — wrapped so failures don't affect the response
-        if self.config.enable_metrics:
-            try:
-                self.metrics.record_request(method, path, status_code, duration)
-            except Exception:
-                logger.debug("Metrics recording error", exc_info=True)
-
-        # Structured log — wrapped for safety
-        if self.config.enable_logging:
-            try:
-                logger.info(
-                    "%s %s %d %.3fms",
-                    method,
-                    path,
-                    status_code,
-                    duration * 1000,
-                    extra={
-                        "request_id": request_id,
-                        "method": method,
-                        "path": path,
-                        "status_code": status_code,
-                        "duration_ms": round(duration * 1000, 3),
-                    },
-                )
-            except Exception:
-                logger.debug("Structured logging error", exc_info=True)
+            # Structured log — wrapped for safety
+            if self.config.enable_logging:
+                try:
+                    logger.info(
+                        "%s %s %d %.3fms",
+                        method,
+                        path,
+                        status_code,
+                        duration * 1000,
+                        extra={
+                            "request_id": request_id,
+                            "method": method,
+                            "path": path,
+                            "status_code": status_code,
+                            "duration_ms": round(duration * 1000, 3),
+                        },
+                    )
+                except Exception:
+                    logger.debug("Structured logging error", exc_info=True)

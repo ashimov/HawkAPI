@@ -35,16 +35,19 @@ class HTTPBearer(SecurityScheme):
 
     async def __call__(self, request: Request) -> HTTPBearerCredentials | None:
         """Extract the Bearer token from the request."""
+        _headers = {"WWW-Authenticate": "Bearer"}
         auth = request.headers.get("authorization")
         if auth is None:
             if self.auto_error:
-                raise missing_credential_error("Missing Authorization header")
+                raise missing_credential_error("Missing Authorization header", headers=_headers)
             return None
 
         parts = auth.split(" ", 1)
-        if len(parts) != 2 or parts[0].lower() != "bearer":
+        if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1].strip():
             if self.auto_error:
-                raise missing_credential_error("Invalid Authorization header format")
+                raise missing_credential_error(
+                    "Invalid Authorization header format", headers=_headers
+                )
             return None
 
         return HTTPBearerCredentials(scheme=parts[0], credentials=parts[1])

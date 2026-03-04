@@ -41,14 +41,6 @@ Automatically return 504 Gateway Timeout for slow handlers:
 app = HawkAPI(request_timeout=10.0)  # 10 second timeout
 ```
 
-## Graceful Shutdown
-
-HawkAPI tracks in-flight requests and waits for them to complete during shutdown:
-
-```python
-app = HawkAPI(shutdown_drain_timeout=30.0)  # Wait up to 30s for in-flight requests
-```
-
 ## Settings Class
 
 For environment-based configuration, use the `Settings` base class:
@@ -61,10 +53,6 @@ class AppSettings(Settings):
     database_url: str = env_field("DATABASE_URL")
     redis_url: str = env_field("REDIS_URL", default="redis://localhost")
     workers: int = env_field("WORKERS", default=4)
-
-    class Config:
-        env_prefix = "APP_"
-        env_file = ".env"
 
 settings = AppSettings.load()
 ```

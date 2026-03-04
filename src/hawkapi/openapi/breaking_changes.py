@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 
 class ChangeType(Enum):
@@ -83,7 +83,7 @@ def detect_breaking_changes(
                 continue
 
             new_op = new_methods[method]
-            changes.extend(_compare_operation(path, method, old_op, new_op))
+            changes.extend(_compare_operation(path, method, old_op, new_op, old_spec, new_spec))
 
     return changes
 
@@ -93,44 +93,46 @@ def _compare_operation(
     method: str,
     old_op: dict[str, Any],
     new_op: dict[str, Any],
+    old_spec: dict[str, Any] | None = None,
+    new_spec: dict[str, Any] | None = None,
 ) -> list[Change]:
     """Compare two operations and detect breaking changes."""
     changes: list[Change] = []
 
-    # Compare parameters
-    old_params = {p["name"]: p for p in old_op.get("parameters", [])}
-    new_params = {p["name"]: p for p in new_op.get("parameters", [])}
+    # Compare parameters — keyed by (name, in) per OpenAPI spec
+    old_params = {(p["name"], p.get("in", "")): p for p in old_op.get("parameters", [])}
+    new_params = {(p["name"], p.get("in", "")): p for p in new_op.get("parameters", [])}
 
-    for name in old_params:
-        if name not in new_params:
+    for key in old_params:
+        if key not in new_params:
             changes.append(
                 Change(
                     type=ChangeType.PARAMETER_REMOVED,
                     severity=Severity.BREAKING,
                     path=path,
                     method=method,
-                    description=f"Parameter '{name}' was removed",
-                    old_value=name,
+                    description=f"Parameter '{key[0]}' (in {key[1]}) was removed",
+                    old_value=key[0],
                 )
             )
 
-    for name, param in new_params.items():
-        if name not in old_params and param.get("required"):
+    for key, param in new_params.items():
+        if key not in old_params and param.get("required"):
             changes.append(
                 Change(
                     type=ChangeType.PARAMETER_ADDED_REQUIRED,
                     severity=Severity.BREAKING,
                     path=path,
                     method=method,
-                    description=f"Required parameter '{name}' was added",
-                    new_value=name,
+                    description=f"Required parameter '{key[0]}' was added",
+                    new_value=key[0],
                 )
             )
 
-    for name in old_params:
-        if name in new_params:
-            old_type = old_params[name].get("schema", {}).get("type")
-            new_type = new_params[name].get("schema", {}).get("type")
+    for key in old_params:
+        if key in new_params:
+            old_type = old_params[key].get("schema", {}).get("type")
+            new_type = new_params[key].get("schema", {}).get("type")
             if old_type and new_type and old_type != new_type:
                 changes.append(
                     Change(
@@ -138,7 +140,7 @@ def _compare_operation(
                         severity=Severity.BREAKING,
                         path=path,
                         method=method,
-                        description=f"Parameter '{name}': '{old_type}' -> '{new_type}'",
+                        description=f"Parameter '{key[0]}': '{old_type}' -> '{new_type}'",
                         old_value=old_type,
                         new_value=new_type,
                     )
@@ -165,8 +167,8 @@ def _compare_operation(
     for status in old_responses:
         if status not in new_responses:
             continue
-        old_schema = _extract_response_schema(old_responses[status])
-        new_schema = _extract_response_schema(new_responses[status])
+        old_schema = _extract_response_schema(old_responses[status], old_spec)
+        new_schema = _extract_response_schema(new_responses[status], new_spec)
         if old_schema and new_schema:
             old_props = old_schema.get("properties", {})
             new_props = new_schema.get("properties", {})
@@ -186,11 +188,30 @@ def _compare_operation(
     return changes
 
 
-def _extract_response_schema(response: dict[str, Any]) -> dict[str, Any] | None:
-    """Extract the JSON schema from a response object."""
+def _extract_response_schema(
+    response: dict[str, Any], spec: dict[str, Any] | None = None
+) -> dict[str, Any] | None:
+    """Extract the JSON schema from a response object, resolving $ref if needed."""
     content = response.get("content", {})
     json_content = content.get("application/json", {})
-    return json_content.get("schema")
+    schema = json_content.get("schema")
+    if schema and "$ref" in schema and spec is not None:
+        schema = _resolve_ref(spec, schema["$ref"])
+    return schema
+
+
+def _resolve_ref(spec: dict[str, Any], ref: str) -> dict[str, Any] | None:
+    """Resolve a JSON $ref pointer within the spec."""
+    if not ref.startswith("#/"):
+        return None
+    parts = ref[2:].split("/")
+    current: dict[str, Any] = spec
+    for part in parts:
+        value: Any = current.get(part)
+        if not isinstance(value, dict):
+            return None
+        current = cast(dict[str, Any], value)
+    return current
 
 
 def format_report(changes: list[Change]) -> str:

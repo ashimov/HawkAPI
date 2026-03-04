@@ -27,11 +27,16 @@ class JSONResponse:
 
     def _build_raw_headers(self) -> list[tuple[bytes, bytes]]:
         raw: list[tuple[bytes, bytes]] = [
-            (b"content-type", b"application/json"),
             (b"content-length", str(len(self.body)).encode("latin-1")),
         ]
+        has_content_type = False
         for key, value in self._headers.items():
-            raw.append((key.lower().encode("latin-1"), value.encode("latin-1")))
+            lower = key.lower()
+            if lower == "content-type":
+                has_content_type = True
+            raw.append((lower.encode("latin-1"), value.encode("latin-1")))
+        if not has_content_type:
+            raw.insert(0, (b"content-type", b"application/json"))
         return raw
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
