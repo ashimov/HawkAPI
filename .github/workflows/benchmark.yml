@@ -1,0 +1,33 @@
+name: Benchmark
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: ASGI Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra uvicorn --extra dev
+
+      - name: Run ASGI-level benchmark
+        run: uv run python benchmarks/bench_request_response.py
+
+      - name: Run e2e benchmark (HawkAPI only)
+        run: uv run python benchmarks/e2e/run_benchmarks.py
