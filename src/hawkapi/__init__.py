@@ -17,6 +17,8 @@ if TYPE_CHECKING:
     from hawkapi.background import BackgroundTasks
     from hawkapi.config import Settings, env_field
     from hawkapi.middleware import Middleware
+    from hawkapi.middleware.prometheus import PrometheusMiddleware
+    from hawkapi.middleware.structured_logging import StructuredLoggingMiddleware
     from hawkapi.observability import ObservabilityConfig, ObservabilityMiddleware
     from hawkapi.openapi import (
         Change,
@@ -65,6 +67,11 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "env_field": ("hawkapi.config", "env_field"),
     # middleware
     "Middleware": ("hawkapi.middleware", "Middleware"),
+    "PrometheusMiddleware": ("hawkapi.middleware.prometheus", "PrometheusMiddleware"),
+    "StructuredLoggingMiddleware": (
+        "hawkapi.middleware.structured_logging",
+        "StructuredLoggingMiddleware",
+    ),
     # pagination
     "Page": ("hawkapi.pagination", "Page"),
     "CursorPage": ("hawkapi.pagination", "CursorPage"),
@@ -172,6 +179,7 @@ __all__ = [
     "Path",
     "PermissionPolicy",
     "PlainTextResponse",
+    "PrometheusMiddleware",
     "Query",
     "RedirectResponse",
     "Request",
@@ -184,6 +192,7 @@ __all__ = [
     "Severity",
     "StaticFiles",
     "StreamingResponse",
+    "StructuredLoggingMiddleware",
     "TestClient",
     "TestResponse",
     "VersionRouter",

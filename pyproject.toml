@@ -15,7 +15,7 @@ authors = [
 ]
 keywords = ["web", "framework", "async", "api", "rest", "asgi", "msgspec"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Framework :: AsyncIO",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
@@ -35,7 +35,9 @@ granian = ["granian>=1.0"]
 uvloop = ["uvloop>=0.21"]
 uvicorn = ["uvicorn[standard]>=0.30"]
 otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]
-all = ["hawkapi[pydantic,granian,uvloop,uvicorn,otel]"]
+metrics = ["prometheus-client>=0.20"]
+logging = ["structlog>=24.0"]
+all = ["hawkapi[pydantic,granian,uvloop,uvicorn,otel,metrics,logging]"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
