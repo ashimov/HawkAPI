@@ -59,6 +59,8 @@ class HawkAPI(Router):
         observability: bool | Any | None = None,
         serverless: bool = False,
         health_url: str | None = "/healthz",
+        readyz_url: str | None = "/readyz",
+        livez_url: str | None = "/livez",
         request_timeout: float | None = None,
     ) -> None:
         super().__init__(prefix=prefix, tags=tags)
@@ -112,6 +114,13 @@ class HawkAPI(Router):
         # Health check endpoint
         if health_url is not None:
             self._setup_health_route(health_url)
+
+        # Health probes
+        self._readiness_checks: dict[str, Callable[..., Any]] = {}
+        if readyz_url is not None:
+            self._setup_readyz_route(readyz_url)
+        if livez_url is not None:
+            self._setup_livez_route(livez_url)
 
         # Graceful shutdown: wait for in-flight requests
         self._hooks.on_shutdown(self._wait_for_in_flight)
@@ -244,6 +253,51 @@ class HawkAPI(Router):
             return {"status": "ok"}
 
         _ = healthz
+
+    def _setup_livez_route(self, livez_url: str) -> None:
+        """Register the liveness probe endpoint."""
+
+        @self.get(livez_url, include_in_schema=False)
+        async def livez(request: Request) -> dict[str, str]:
+            return {"status": "alive"}
+
+        _ = livez
+
+    def _setup_readyz_route(self, readyz_url: str) -> None:
+        """Register the readiness probe endpoint."""
+
+        @self.get(readyz_url, include_in_schema=False)
+        async def readyz(request: Request) -> Response:
+            checks: dict[str, dict[str, Any]] = {}
+            all_ok = True
+            for name, check_fn in self._readiness_checks.items():
+                ok, detail = await check_fn()
+                checks[name] = {"ok": ok, "detail": detail}
+                if not ok:
+                    all_ok = False
+            status = "ready" if all_ok else "not_ready"
+            status_code = 200 if all_ok else 503
+            body = encode_response({"status": status, "checks": checks})
+            return Response(
+                content=body,
+                status_code=status_code,
+                content_type="application/json",
+            )
+
+        _ = readyz
+
+    def readiness_check(self, name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        """Register a readiness check (decorator).
+
+        The decorated function must be an async callable returning
+        ``(ok: bool, detail: str)``.
+        """
+
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            self._readiness_checks[name] = func
+            return func
+
+        return decorator
 
     def _collect_routes(self) -> list[Route]:
         """Collect all routes that should appear in the OpenAPI schema."""
