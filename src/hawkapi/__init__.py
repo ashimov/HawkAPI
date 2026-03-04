@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from hawkapi.background import BackgroundTasks
     from hawkapi.config import Settings, env_field
     from hawkapi.middleware import Middleware
+    from hawkapi.middleware.request_limits import RequestLimitsMiddleware
     from hawkapi.observability import ObservabilityConfig, ObservabilityMiddleware
     from hawkapi.openapi import (
         Change,
@@ -64,6 +65,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "env_field": ("hawkapi.config", "env_field"),
     # middleware
     "Middleware": ("hawkapi.middleware", "Middleware"),
+    "RequestLimitsMiddleware": ("hawkapi.middleware.request_limits", "RequestLimitsMiddleware"),
     # openapi
     "generate_openapi": ("hawkapi.openapi", "generate_openapi"),
     "detect_breaking_changes": ("hawkapi.openapi", "detect_breaking_changes"),
@@ -165,6 +167,7 @@ __all__ = [
     "Query",
     "RedirectResponse",
     "Request",
+    "RequestLimitsMiddleware",
     "Response",
     "Route",
     "Router",
