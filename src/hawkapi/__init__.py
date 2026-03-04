@@ -25,6 +25,7 @@ if TYPE_CHECKING:
         detect_breaking_changes,
         generate_openapi,
     )
+    from hawkapi.pagination import CursorPage, CursorParams, Page, PaginationParams
     from hawkapi.responses import (
         EventSourceResponse,
         FileResponse,
@@ -64,6 +65,11 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "env_field": ("hawkapi.config", "env_field"),
     # middleware
     "Middleware": ("hawkapi.middleware", "Middleware"),
+    # pagination
+    "Page": ("hawkapi.pagination", "Page"),
+    "CursorPage": ("hawkapi.pagination", "CursorPage"),
+    "PaginationParams": ("hawkapi.pagination", "PaginationParams"),
+    "CursorParams": ("hawkapi.pagination", "CursorParams"),
     # openapi
     "generate_openapi": ("hawkapi.openapi", "generate_openapi"),
     "detect_breaking_changes": ("hawkapi.openapi", "detect_breaking_changes"),
@@ -141,6 +147,8 @@ __all__ = [
     "Change",
     "ChangeType",
     "Container",
+    "CursorPage",
+    "CursorParams",
     "Controller",
     "Cookie",
     "Depends",
@@ -159,6 +167,8 @@ __all__ = [
     "OAuth2PasswordBearer",
     "ObservabilityConfig",
     "ObservabilityMiddleware",
+    "Page",
+    "PaginationParams",
     "Path",
     "PermissionPolicy",
     "PlainTextResponse",
