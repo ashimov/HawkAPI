@@ -132,6 +132,13 @@ def main(argv: list[str] | None = None) -> None:
         help="Output file path (default: print to stdout)",
     )
 
+    # `hawkapi new` subcommand
+    new_parser = subparsers.add_parser("new", help="Create a new HawkAPI project")
+    new_parser.add_argument("name", help="Project name")
+    new_parser.add_argument(
+        "--docker", action="store_true", help="Include Dockerfile"
+    )
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -146,6 +153,8 @@ def main(argv: list[str] | None = None) -> None:
         _run_check(args)
     elif args.command == "changelog":
         _run_changelog(args)
+    elif args.command == "new":
+        _run_new(args)
 
 
 def _run_dev(args: argparse.Namespace) -> None:
@@ -221,6 +230,21 @@ def _run_changelog(args: argparse.Namespace) -> None:
         print(f"Changelog written to {args.output}")
     else:
         print(changelog)
+
+
+def _run_new(args: argparse.Namespace) -> None:
+    """Scaffold a new HawkAPI project."""
+    import os
+
+    from hawkapi._scaffold.templates import generate_project
+
+    project_dir = os.path.join(os.getcwd(), args.name)
+    if os.path.exists(project_dir):
+        print(f"Error: directory '{args.name}' already exists", file=sys.stderr)
+        sys.exit(1)
+    generate_project(project_dir, name=args.name, docker=args.docker)
+    print(f"Created project '{args.name}' in ./{args.name}/")
+    print(f"  cd {args.name} && uv sync && hawkapi dev main:app")
 
 
 if __name__ == "__main__":
