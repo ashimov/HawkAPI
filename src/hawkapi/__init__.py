@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from hawkapi.config import Settings, env_field
     from hawkapi.middleware import Middleware
     from hawkapi.middleware.prometheus import PrometheusMiddleware
+    from hawkapi.middleware.request_limits import RequestLimitsMiddleware
     from hawkapi.middleware.structured_logging import StructuredLoggingMiddleware
     from hawkapi.middleware.trusted_proxy import TrustedProxyMiddleware
     from hawkapi.observability import ObservabilityConfig, ObservabilityMiddleware
@@ -69,6 +70,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # middleware
     "Middleware": ("hawkapi.middleware", "Middleware"),
     "PrometheusMiddleware": ("hawkapi.middleware.prometheus", "PrometheusMiddleware"),
+    "RequestLimitsMiddleware": ("hawkapi.middleware.request_limits", "RequestLimitsMiddleware"),
     "StructuredLoggingMiddleware": (
         "hawkapi.middleware.structured_logging",
         "StructuredLoggingMiddleware",
@@ -188,6 +190,7 @@ __all__ = [
     "Query",
     "RedirectResponse",
     "Request",
+    "RequestLimitsMiddleware",
     "Response",
     "Route",
     "Router",

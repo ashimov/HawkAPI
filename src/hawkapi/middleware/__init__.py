@@ -5,6 +5,7 @@ from hawkapi.middleware.gzip import GZipMiddleware
 from hawkapi.middleware.https_redirect import HTTPSRedirectMiddleware
 from hawkapi.middleware.rate_limit import RateLimitMiddleware
 from hawkapi.middleware.request_id import RequestIDMiddleware
+from hawkapi.middleware.request_limits import RequestLimitsMiddleware
 from hawkapi.middleware.security_headers import SecurityHeadersMiddleware
 from hawkapi.middleware.timing import TimingMiddleware
 from hawkapi.middleware.trusted_host import TrustedHostMiddleware
@@ -17,6 +18,7 @@ __all__ = [
     "Middleware",
     "RateLimitMiddleware",
     "RequestIDMiddleware",
+    "RequestLimitsMiddleware",
     "SecurityHeadersMiddleware",
     "TimingMiddleware",
     "TrustedHostMiddleware",
