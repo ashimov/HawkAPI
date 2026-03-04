@@ -107,6 +107,31 @@ def main(argv: list[str] | None = None) -> None:
         help="Application to check (module:attribute format, e.g. main:app)",
     )
 
+    # `hawkapi changelog` subcommand
+    changelog_parser = subparsers.add_parser(
+        "changelog",
+        help="Generate Markdown changelog between two app versions",
+    )
+    changelog_parser.add_argument(
+        "old_app",
+        help="Old application ref (module:attribute format, e.g. old_app:app)",
+    )
+    changelog_parser.add_argument(
+        "new_app",
+        help="New application ref (module:attribute format, e.g. new_app:app)",
+    )
+    changelog_parser.add_argument(
+        "--title",
+        default="API Changelog",
+        help="Title for the changelog (default: 'API Changelog')",
+    )
+    changelog_parser.add_argument(
+        "-o",
+        "--output",
+        default=None,
+        help="Output file path (default: print to stdout)",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -119,6 +144,8 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(_run_diff(args))
     elif args.command == "check":
         _run_check(args)
+    elif args.command == "changelog":
+        _run_changelog(args)
 
 
 def _run_dev(args: argparse.Namespace) -> None:
@@ -174,6 +201,26 @@ def _run_check(args: argparse.Namespace) -> None:
 
     if issues:
         sys.exit(1)
+
+
+def _run_changelog(args: argparse.Namespace) -> None:
+    """Generate a Markdown changelog between two application versions."""
+    from hawkapi.openapi.changelog import generate_changelog
+
+    old_module_path, old_attr = _parse_ref(args.old_app)
+    new_module_path, new_attr = _parse_ref(args.new_app)
+
+    old_spec = _load_app_spec(old_module_path, old_attr)
+    new_spec = _load_app_spec(new_module_path, new_attr)
+    changes = _diff_specs(old_spec, new_spec)
+    changelog = generate_changelog(changes, title=args.title)
+
+    if args.output:
+        with open(args.output, "w") as fh:
+            fh.write(changelog)
+        print(f"Changelog written to {args.output}")
+    else:
+        print(changelog)
 
 
 if __name__ == "__main__":
