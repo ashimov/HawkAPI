@@ -1,0 +1,69 @@
+# API Breaking Changes Check
+# Copy this file to .github/workflows/api-diff.yml in your project.
+# Requires: hawkapi installed in your project.
+
+name: API Breaking Changes Check
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+
+jobs:
+  api-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync --frozen
+
+      - name: Generate new spec
+        run: |
+          uv run python -c "
+          import json
+          from myapp.main import app  # <-- change to your app module
+          from hawkapi.openapi.schema import generate_openapi
+          spec = generate_openapi(app.routes)
+          with open('new_spec.json', 'w') as f:
+              json.dump(spec, f)
+          "
+
+      - name: Generate old spec (from base branch)
+        run: |
+          git stash
+          git checkout ${{ github.event.pull_request.base.sha }}
+          uv run python -c "
+          import json
+          from myapp.main import app  # <-- change to your app module
+          from hawkapi.openapi.schema import generate_openapi
+          spec = generate_openapi(app.routes)
+          with open('old_spec.json', 'w') as f:
+              json.dump(spec, f)
+          "
+          git checkout -
+
+      - name: Check for breaking changes
+        run: |
+          uv run python -c "
+          import json, sys
+          from hawkapi.openapi.breaking_changes import detect_breaking_changes, format_report, Severity
+          with open('old_spec.json') as f:
+              old = json.load(f)
+          with open('new_spec.json') as f:
+              new = json.load(f)
+          changes = detect_breaking_changes(old, new)
+          if changes:
+              print(format_report(changes))
+          else:
+              print('No API changes detected.')
+          sys.exit(1 if any(c.severity == Severity.BREAKING for c in changes) else 0)
+          "
