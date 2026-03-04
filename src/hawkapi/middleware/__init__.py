@@ -1,6 +1,7 @@
 from hawkapi.middleware.base import Middleware
 from hawkapi.middleware.circuit_breaker import CircuitBreakerMiddleware
 from hawkapi.middleware.cors import CORSMiddleware
+from hawkapi.middleware.debug import DebugMiddleware
 from hawkapi.middleware.error_handler import ErrorHandlerMiddleware
 from hawkapi.middleware.gzip import GZipMiddleware
 from hawkapi.middleware.https_redirect import HTTPSRedirectMiddleware
@@ -14,6 +15,7 @@ from hawkapi.middleware.trusted_host import TrustedHostMiddleware
 __all__ = [
     "CircuitBreakerMiddleware",
     "CORSMiddleware",
+    "DebugMiddleware",
     "ErrorHandlerMiddleware",
     "GZipMiddleware",
     "HTTPSRedirectMiddleware",

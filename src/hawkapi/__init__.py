@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from hawkapi.config import Settings, env_field
     from hawkapi.middleware import Middleware
     from hawkapi.middleware.circuit_breaker import CircuitBreakerMiddleware
+    from hawkapi.middleware.debug import DebugMiddleware
     from hawkapi.middleware.prometheus import PrometheusMiddleware
     from hawkapi.middleware.request_limits import RequestLimitsMiddleware
     from hawkapi.middleware.structured_logging import StructuredLoggingMiddleware
@@ -70,6 +71,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "env_field": ("hawkapi.config", "env_field"),
     # middleware
     "CircuitBreakerMiddleware": ("hawkapi.middleware.circuit_breaker", "CircuitBreakerMiddleware"),
+    "DebugMiddleware": ("hawkapi.middleware.debug", "DebugMiddleware"),
     "Middleware": ("hawkapi.middleware", "Middleware"),
     "PrometheusMiddleware": ("hawkapi.middleware.prometheus", "PrometheusMiddleware"),
     "RequestLimitsMiddleware": ("hawkapi.middleware.request_limits", "RequestLimitsMiddleware"),
@@ -168,6 +170,7 @@ __all__ = [
     "CursorParams",
     "Controller",
     "Cookie",
+    "DebugMiddleware",
     "Depends",
     "EventSourceResponse",
     "FileResponse",
