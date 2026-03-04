@@ -1,7 +1,5 @@
 # DX Parity & Killer Features Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Close the developer-experience gap with FastAPI and introduce differentiating features (pagination, OpenAPI examples, Prometheus, structured logging, migration guide, Docker template, API diff CI, e2e benchmarks).
 
 **Architecture:** Each feature is a standalone module in `src/hawkapi/` with its own test file. Features that require external dependencies use optional extras (`hawkapi[metrics]`, `hawkapi[logging]`). All new public types are exposed via `hawkapi.__init__` lazy imports.

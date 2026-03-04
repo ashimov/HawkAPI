@@ -1,7 +1,5 @@
 # Level 2 Production Features Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add 13 production-grade features across 3 waves — production essentials, contract pipeline, and DX tooling.
 
 **Architecture:** Each feature is self-contained with its own module, test file, and lazy import entry. Middleware follows the raw ASGI `__call__` pattern (override, not hooks) for performance. CLI commands use `argparse` subparsers. All new public symbols go into `__init__.py` lazy imports + `__all__` + `TYPE_CHECKING`.

@@ -3,6 +3,7 @@
 import math
 
 import msgspec
+from msgspec.structs import force_setattr
 
 
 class PaginationParams(msgspec.Struct, frozen=True):
@@ -20,7 +21,7 @@ class PaginationParams(msgspec.Struct, frozen=True):
 
     def __post_init__(self) -> None:
         if self.page < 1:
-            object.__setattr__(self, "page", 1)
+            force_setattr(self, "page", 1)
 
     @property
     def offset(self) -> int:
@@ -48,7 +49,7 @@ class CursorParams(msgspec.Struct, frozen=True):
 
     def __post_init__(self) -> None:
         if self.limit > self.max_limit:
-            object.__setattr__(self, "limit", self.max_limit)
+            force_setattr(self, "limit", self.max_limit)
 
 
 class Page[T](msgspec.Struct):
@@ -62,9 +63,9 @@ class Page[T](msgspec.Struct):
 
     def __post_init__(self) -> None:
         if self.total == 0 or self.size <= 0:
-            object.__setattr__(self, "pages", 0)
+            force_setattr(self, "pages", 0)
         else:
-            object.__setattr__(self, "pages", math.ceil(self.total / self.size))
+            force_setattr(self, "pages", math.ceil(self.total / self.size))
 
 
 class CursorPage[T](msgspec.Struct):
@@ -75,4 +76,4 @@ class CursorPage[T](msgspec.Struct):
     has_more: bool = False
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "has_more", self.next_cursor is not None)
+        force_setattr(self, "has_more", self.next_cursor is not None)
