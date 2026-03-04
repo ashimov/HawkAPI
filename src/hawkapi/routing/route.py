@@ -23,5 +23,7 @@ class Route:
     description: str | None = None
     include_in_schema: bool = True
     deprecated: bool = False
+    sunset: str | None = None
+    deprecation_link: str | None = None
     version: str | None = None
     permissions: list[str] | None = None

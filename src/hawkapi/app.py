@@ -590,6 +590,14 @@ class HawkAPI(Router):
             elif hasattr(response, "body"):
                 response.body = b""
 
+        # Inject RFC 8594 deprecation headers for deprecated routes
+        if route.deprecated:
+            response._headers["deprecation"] = "true"
+            if route.sunset is not None:
+                response._headers["sunset"] = route.sunset
+            if route.deprecation_link is not None:
+                response._headers["link"] = f'<{route.deprecation_link}>; rel="deprecation"'
+
         try:
             await response(scope, receive, send)
 

@@ -50,6 +50,8 @@ class Router:
         description: str | None = None,
         include_in_schema: bool = True,
         deprecated: bool = False,
+        sunset: str | None = None,
+        deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
     ) -> Route:
@@ -71,6 +73,8 @@ class Router:
             description=description,
             include_in_schema=include_in_schema,
             deprecated=deprecated,
+            sunset=sunset,
+            deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
         )
@@ -90,6 +94,8 @@ class Router:
         name: str | None = None,
         include_in_schema: bool = True,
         deprecated: bool = False,
+        sunset: str | None = None,
+        deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
@@ -106,6 +112,8 @@ class Router:
                 description=description,
                 include_in_schema=include_in_schema,
                 deprecated=deprecated,
+                sunset=sunset,
+                deprecation_link=deprecation_link,
                 version=version,
                 permissions=permissions,
             )
@@ -125,6 +133,8 @@ class Router:
         name: str | None = None,
         include_in_schema: bool = True,
         deprecated: bool = False,
+        sunset: str | None = None,
+        deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
@@ -140,6 +150,8 @@ class Router:
             name=name,
             include_in_schema=include_in_schema,
             deprecated=deprecated,
+            sunset=sunset,
+            deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
         )
@@ -156,6 +168,8 @@ class Router:
         name: str | None = None,
         include_in_schema: bool = True,
         deprecated: bool = False,
+        sunset: str | None = None,
+        deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
@@ -171,6 +185,8 @@ class Router:
             name=name,
             include_in_schema=include_in_schema,
             deprecated=deprecated,
+            sunset=sunset,
+            deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
         )
@@ -187,6 +203,8 @@ class Router:
         name: str | None = None,
         include_in_schema: bool = True,
         deprecated: bool = False,
+        sunset: str | None = None,
+        deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
@@ -202,6 +220,8 @@ class Router:
             name=name,
             include_in_schema=include_in_schema,
             deprecated=deprecated,
+            sunset=sunset,
+            deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
         )
@@ -218,6 +238,8 @@ class Router:
         name: str | None = None,
         include_in_schema: bool = True,
         deprecated: bool = False,
+        sunset: str | None = None,
+        deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
@@ -233,6 +255,8 @@ class Router:
             name=name,
             include_in_schema=include_in_schema,
             deprecated=deprecated,
+            sunset=sunset,
+            deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
         )
@@ -249,6 +273,8 @@ class Router:
         name: str | None = None,
         include_in_schema: bool = True,
         deprecated: bool = False,
+        sunset: str | None = None,
+        deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
@@ -264,6 +290,8 @@ class Router:
             name=name,
             include_in_schema=include_in_schema,
             deprecated=deprecated,
+            sunset=sunset,
+            deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
         )
@@ -312,6 +340,8 @@ class Router:
                 description=route.description,
                 include_in_schema=route.include_in_schema,
                 deprecated=route.deprecated,
+                sunset=route.sunset,
+                deprecation_link=route.deprecation_link,
                 version=route.version,
                 permissions=route.permissions,
             )
