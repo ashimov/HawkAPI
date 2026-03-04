@@ -8,7 +8,7 @@ from typing import Any
 class ParamMarker:
     """Base class for parameter source markers."""
 
-    __slots__ = ("alias", "description", "default", "default_factory")
+    __slots__ = ("alias", "description", "default", "default_factory", "example")
 
     def __init__(
         self,
@@ -17,11 +17,13 @@ class ParamMarker:
         description: str | None = None,
         default: Any = ...,
         default_factory: Any = None,
+        example: Any = ...,
     ) -> None:
         self.alias = alias
         self.description = description
         self.default = default
         self.default_factory = default_factory
+        self.example = example
 
     def has_default(self) -> bool:
         """Return True if a default value or factory is configured."""

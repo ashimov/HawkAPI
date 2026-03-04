@@ -125,6 +125,7 @@ def _build_operation(
 
     parameters: list[dict[str, Any]] = []
     request_body_type: type | None = None
+    body_example: Any = ...
 
     for name, param in sig.parameters.items():
         if name == "self" or name == "request":
@@ -138,6 +139,7 @@ def _build_operation(
         base_type = _get_base_type(annotation)
 
         if isinstance(marker, Path) or name in _extract_path_params(route.path):
+            example = marker.example if isinstance(marker, ParamMarker) else ...
             parameters.append(
                 _build_parameter(
                     name=marker.alias if isinstance(marker, Path) and marker.alias else name,
@@ -145,6 +147,7 @@ def _build_operation(
                     required=True,
                     annotation=base_type,
                     description=marker.description if isinstance(marker, ParamMarker) else None,
+                    example=example,
                 )
             )
 
@@ -158,6 +161,7 @@ def _build_operation(
                     ),
                     annotation=base_type,
                     description=marker.description if marker else None,
+                    example=marker.example,
                 )
             )
 
@@ -169,6 +173,7 @@ def _build_operation(
                     required=param.default is inspect.Parameter.empty and not marker.has_default(),
                     annotation=base_type,
                     description=marker.description,
+                    example=marker.example,
                 )
             )
 
@@ -180,11 +185,14 @@ def _build_operation(
                     required=param.default is inspect.Parameter.empty and not marker.has_default(),
                     annotation=base_type,
                     description=marker.description,
+                    example=marker.example,
                 )
             )
 
         elif isinstance(marker, Body) or _is_body_type(base_type):
             request_body_type = base_type
+            if isinstance(marker, Body) and marker.example is not ...:
+                body_example = marker.example
 
         elif (
             param.default is not inspect.Parameter.empty
@@ -211,11 +219,12 @@ def _build_operation(
             schemas[schema_name] = body_schema
             body_schema = {"$ref": f"#/components/schemas/{schema_name}"}
 
+        json_content: dict[str, Any] = {"schema": body_schema}
+        if body_example is not ...:
+            json_content["example"] = body_example
         operation["requestBody"] = {
             "required": True,
-            "content": {
-                "application/json": {"schema": body_schema},
-            },
+            "content": {"application/json": json_content},
         }
 
     # Detect security schemes from Depends(SecurityScheme) markers
@@ -263,6 +272,7 @@ def _build_parameter(
     required: bool,
     annotation: Any,
     description: str | None = None,
+    example: Any = ...,
 ) -> dict[str, Any]:
     param: dict[str, Any] = {
         "name": name,
@@ -276,6 +286,8 @@ def _build_parameter(
     }
     if description:
         param["description"] = description
+    if example is not ...:
+        param["example"] = example
     return param
 
 
