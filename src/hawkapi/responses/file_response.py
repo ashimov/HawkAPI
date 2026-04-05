@@ -93,15 +93,16 @@ class FileResponse:
             while True:
                 chunk = f.read(self.CHUNK_SIZE)
                 if not chunk:
+                    # EOF — send terminal frame
                     await send({"type": "http.response.body", "body": b"", "more_body": False})
                     break
-                more = len(chunk) == self.CHUNK_SIZE
-                await send(
-                    {
-                        "type": "http.response.body",
-                        "body": chunk,
-                        "more_body": more,
-                    }
-                )
-                if not more:
+                # Peek ahead to determine if this is the last chunk
+                next_chunk = f.read(1)
+                if next_chunk:
+                    # More data available — send with more_body=True
+                    f.seek(-1, 1)  # Unread the peeked byte
+                    await send({"type": "http.response.body", "body": chunk, "more_body": True})
+                else:
+                    # This is the last chunk — send with more_body=False
+                    await send({"type": "http.response.body", "body": chunk, "more_body": False})
                     break

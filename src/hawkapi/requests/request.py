@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 import msgspec
@@ -54,6 +55,7 @@ class Request:
         "_path_params",
         "_max_body_size",
         "_state",
+        "_body_consumed",
     )
 
     def __init__(
@@ -74,6 +76,7 @@ class Request:
         self._path_params = path_params or {}
         self._max_body_size = max_body_size
         self._state: State | Any = UNSET
+        self._body_consumed = False
 
     @property
     def state(self) -> State:
@@ -172,9 +175,38 @@ class Request:
 
     async def body(self) -> bytes:
         """Read and return the full request body (lazily cached)."""
+        if self._body_consumed:
+            raise RuntimeError("Body already consumed by stream()")
         if self._body is UNSET:
             self._body = await read_body(self._receive, self._max_body_size)
         return self._body
+
+    async def stream(self) -> AsyncIterator[bytes]:
+        """Stream the request body in chunks without full buffering.
+
+        Yields chunks as they arrive from the ASGI receive callable.
+        Respects max_body_size -- raises RequestEntityTooLarge if exceeded.
+
+        Once streamed, body() will raise RuntimeError.
+        If body() was called first, yields the cached body as a single chunk.
+        """
+        # If body was already fully read, yield it as a single chunk
+        if self._body is not UNSET:
+            yield self._body
+            return
+
+        self._body_consumed = True
+        total = 0
+        while True:
+            message = await self._receive()
+            chunk = message.get("body", b"")
+            if chunk:
+                total += len(chunk)
+                if total > self._max_body_size:
+                    raise RequestEntityTooLarge(self._max_body_size)
+                yield chunk
+            if not message.get("more_body", False):
+                break
 
     async def json(self) -> Any:
         """Deserialize the request body from JSON (lazily cached)."""
@@ -214,5 +246,9 @@ def _parse_cookies(cookie_header: str) -> dict[str, str]:
         pair = pair.strip()
         if "=" in pair:
             key, _, value = pair.partition("=")
-            cookies[key.strip()] = value.strip()
+            value = value.strip()
+            # Strip RFC 6265 quoted-string wrapper
+            if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
+                value = value[1:-1]
+            cookies[key.strip()] = value
     return cookies

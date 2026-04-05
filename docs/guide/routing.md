@@ -75,6 +75,27 @@ class UserController(Controller):
 app.include_controller(UserController)
 ```
 
+## Per-Route Middleware
+
+Apply middleware to specific routes by passing a `middleware` list to the route decorator. This is useful when only certain endpoints need authentication, CSRF protection, or other processing.
+
+```python
+from hawkapi.middleware.csrf import CSRFMiddleware
+from hawkapi.middleware.rate_limit_redis import RedisRateLimitMiddleware
+
+@app.post(
+    "/payment",
+    middleware=[
+        (CSRFMiddleware, {"secret": "s3cret"}),
+        (RedisRateLimitMiddleware, {"requests_per_second": 2.0}),
+    ],
+)
+async def process_payment():
+    return {"status": "ok"}
+```
+
+Each entry can be a middleware class (no extra arguments) or a `(MiddlewareClass, kwargs)` tuple. Per-route middleware runs inside the global middleware stack and only applies to the matched route.
+
 ## Mounting Sub-Applications
 
 ```python

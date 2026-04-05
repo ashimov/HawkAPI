@@ -6,12 +6,41 @@ No async/sync split like FastAPI. Works the same way everywhere.
 from __future__ import annotations
 
 import asyncio
+from http.cookies import SimpleCookie
 from typing import Any
 from urllib.parse import urlencode
 
 import msgspec
 
 from hawkapi._types import ASGIApp
+
+_UNSET = object()
+
+
+class CaseInsensitiveDict(dict):
+    """Dictionary with case-insensitive key access.
+
+    Preserves the original case of keys when iterating, but lookups
+    and containment checks are case-insensitive.
+    """
+
+    def __getitem__(self, key: str) -> str:
+        for k, v in super().items():
+            if k.lower() == key.lower():
+                return v
+        raise KeyError(key)
+
+    def __contains__(self, key: object) -> bool:
+        if not isinstance(key, str):
+            return False
+        lower = key.lower()
+        return any(k.lower() == lower for k in dict.keys(self))
+
+    def get(self, key: str, default: str | None = None) -> str | None:  # type: ignore[override]
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
 
 class TestResponse:
@@ -28,7 +57,7 @@ class TestResponse:
         self.status_code = status_code
         self.body = body
         self._headers_raw = headers
-        self._json_cache: Any = None
+        self._json_cache: Any = _UNSET
 
     @property
     def text(self) -> str:
@@ -36,18 +65,60 @@ class TestResponse:
         return self.body.decode("utf-8")
 
     @property
-    def headers(self) -> dict[str, str]:
-        """Response headers as a string-to-string dictionary."""
-        return {k.decode("latin-1"): v.decode("latin-1") for k, v in self._headers_raw}
+    def headers(self) -> CaseInsensitiveDict:
+        """Response headers as a case-insensitive dictionary."""
+        return CaseInsensitiveDict(
+            {k.decode("latin-1"): v.decode("latin-1") for k, v in self._headers_raw}
+        )
+
+    @property
+    def cookies(self) -> dict[str, str]:
+        """Parse Set-Cookie headers into a name->value dictionary."""
+        result: dict[str, str] = {}
+        for k, v in self._headers_raw:
+            if k.decode("latin-1").lower() == "set-cookie":
+                cookie: SimpleCookie[str] = SimpleCookie()
+                cookie.load(v.decode("latin-1"))
+                for morsel_key, morsel in cookie.items():
+                    result[morsel_key] = morsel.value
+        return result
+
+    @property
+    def is_success(self) -> bool:
+        """True if the response status code is 2xx."""
+        return 200 <= self.status_code < 300
+
+    @property
+    def is_redirect(self) -> bool:
+        """True if the response status code is 3xx."""
+        return 300 <= self.status_code < 400
+
+    def raise_for_status(self) -> None:
+        """Raise an exception if the response status code is >= 400."""
+        if self.status_code >= 400:
+            raise HTTPStatusError(
+                f"HTTP {self.status_code}",
+                status_code=self.status_code,
+                response=self,
+            )
 
     def json(self) -> Any:
         """Deserialize the response body from JSON (cached)."""
-        if self._json_cache is None:
+        if self._json_cache is _UNSET:
             self._json_cache = msgspec.json.decode(self.body)
         return self._json_cache
 
     def __repr__(self) -> str:
         return f"<TestResponse [{self.status_code}]>"
+
+
+class HTTPStatusError(Exception):
+    """Raised by TestResponse.raise_for_status() for 4xx/5xx responses."""
+
+    def __init__(self, message: str, *, status_code: int, response: TestResponse) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.response = response
 
 
 class TestClient:
@@ -64,6 +135,8 @@ class TestClient:
         self.app = app
         self.base_url = base_url
         self._default_headers: dict[str, str] = {}
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self.cookies: dict[str, str] = {}
 
     def _get_event_loop(self) -> asyncio.AbstractEventLoop:
         try:
@@ -72,13 +145,13 @@ class TestClient:
             loop = None
 
         if loop and loop.is_running():
-            # We're inside an async context — create a new loop in a thread
             raise RuntimeError(
                 "TestClient cannot be used inside an async context. Use the async methods directly."
             )
 
-        loop = asyncio.new_event_loop()
-        return loop
+        if self._loop is None or self._loop.is_closed():
+            self._loop = asyncio.new_event_loop()
+        return self._loop
 
     def get(
         self,
@@ -168,19 +241,16 @@ class TestClient:
     ) -> TestResponse:
         """Execute a request synchronously."""
         loop = self._get_event_loop()
-        try:
-            return loop.run_until_complete(
-                self._async_request(
-                    method,
-                    path,
-                    json=json,
-                    body=body,
-                    headers=headers,
-                    params=params,
-                )
+        return loop.run_until_complete(
+            self._async_request(
+                method,
+                path,
+                json=json,
+                body=body,
+                headers=headers,
+                params=params,
             )
-        finally:
-            loop.close()
+        )
 
     async def _async_request(
         self,
@@ -202,6 +272,16 @@ class TestClient:
             merged_headers.setdefault("content-type", "application/json")
         elif body is not None:
             request_body = body
+
+        # Inject cookie jar into request headers
+        if self.cookies:
+            cookie_str = "; ".join(f"{k}={v}" for k, v in self.cookies.items())
+            # Merge with any existing cookie header
+            existing = merged_headers.get("cookie", "")
+            if existing:
+                merged_headers["cookie"] = existing + "; " + cookie_str
+            else:
+                merged_headers["cookie"] = cookie_str
 
         # Build query string
         query_string = b""
@@ -249,11 +329,21 @@ class TestClient:
 
         await self.app(scope, receive, send)
 
-        return TestResponse(
+        resp = TestResponse(
             status_code=status_code,
             body=b"".join(body_parts),
             headers=response_headers,
         )
+
+        # Update cookie jar from Set-Cookie headers
+        for k, v in response_headers:
+            if k.decode("latin-1").lower() == "set-cookie":
+                cookie: SimpleCookie[str] = SimpleCookie()
+                cookie.load(v.decode("latin-1"))
+                for morsel_key, morsel in cookie.items():
+                    self.cookies[morsel_key] = morsel.value
+
+        return resp
 
     # Async versions for use in async tests
     async def async_get(self, path: str, **kwargs: Any) -> TestResponse:

@@ -76,11 +76,12 @@ class Settings:
             class_val = getattr(cls, field_name, ...)
             if isinstance(class_val, _EnvField):
                 env_var = class_val.env_var
-                # Use explicit None checks to preserve falsy values (0, "", False)
-                raw = overrides.get(field_name)
-                if raw is None:
+                # Use sentinel to preserve falsy override values (0, "", False)
+                _MISSING = object()
+                raw = overrides.get(field_name, _MISSING)
+                if raw is _MISSING:
                     raw = env_vars.get(env_var)
-                if raw is None:
+                if raw is None or raw is _MISSING:
                     raw = os.environ.get(env_var)
                 if raw is not None:
                     kwargs[field_name] = _coerce(raw, field_type)
@@ -109,8 +110,24 @@ class Settings:
         return f"{type(self).__name__}({', '.join(fields)})"
 
 
+def _unwrap_optional(tp: Any) -> Any:
+    """Unwrap Optional[T] / T | None to T."""
+    import types as _types
+    from typing import Union, get_args, get_origin
+
+    origin = get_origin(tp)
+    if origin in (Union, _types.UnionType):
+        non_none = [a for a in get_args(tp) if a is not type(None)]
+        if len(non_none) == 1:
+            return non_none[0]
+    return tp
+
+
 def _coerce(value: Any, target_type: type) -> Any:
     """Coerce a value to the target type."""
+    target_type = _unwrap_optional(target_type)
+    if not isinstance(target_type, type):
+        return value  # Unknown generic — return as-is
     if isinstance(value, target_type):
         return value
     if target_type is bool:

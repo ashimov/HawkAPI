@@ -52,7 +52,7 @@ class HTTPBasic(SecurityScheme):
             return None
 
         try:
-            decoded = base64.b64decode(parts[1]).decode("utf-8")
+            decoded = base64.b64decode(parts[1], validate=True).decode("utf-8")
         except Exception as exc:
             if self.auto_error:
                 raise missing_credential_error("Invalid base64 encoding", headers=_headers) from exc

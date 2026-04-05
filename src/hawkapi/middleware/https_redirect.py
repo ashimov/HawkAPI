@@ -39,7 +39,7 @@ class HTTPSRedirectMiddleware(Middleware):
             query_string = scope.get("query_string", b"")
             url = f"https://{host}{path}"
             if query_string:
-                url += f"?{query_string.decode('latin-1')}"
+                url += f"?{query_string.decode('ascii', errors='ignore')}"
 
             response = RedirectResponse(url, status_code=self._redirect_status_code)
             await response(scope, receive, send)

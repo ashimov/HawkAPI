@@ -37,3 +37,15 @@ def encode_response(data: Any) -> bytes:
         return _encoder.encode(data)
     except TypeError:
         return _encoder_with_hook.encode(data)
+
+
+_msgpack_encoder = msgspec.msgpack.Encoder()
+_msgpack_encoder_with_hook = msgspec.msgpack.Encoder(enc_hook=_enc_hook)
+
+
+def encode_response_msgpack(data: Any) -> bytes:
+    """Encode response data as MessagePack using msgspec."""
+    try:
+        return _msgpack_encoder.encode(data)
+    except TypeError:
+        return _msgpack_encoder_with_hook.encode(data)

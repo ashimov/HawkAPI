@@ -32,9 +32,11 @@ class Scope:
             return self._instances[key]
 
         provider = self._providers.get(key)
-        if provider is None:
-            # Try without name (unnamed provider)
+        actual_key = key
+        if provider is None and name is not None:
+            # Try without name (unnamed provider), but cache under the unnamed key
             provider = self._providers.get((service_type, None))
+            actual_key = (service_type, None)
         if provider is None:
             raise LookupError(
                 f"No provider registered for {service_type.__name__}"
@@ -43,9 +45,9 @@ class Scope:
 
         instance = await provider.resolve()
 
-        # Cache scoped instances
+        # Cache scoped instances under the actual provider key
         if provider.lifecycle == Lifecycle.SCOPED:
-            self._instances[key] = instance
+            self._instances[actual_key] = instance
             # Pre-resolve the close method at resolve time
             close = getattr(instance, "aclose", None) or getattr(instance, "close", None)
             if close is not None:

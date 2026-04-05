@@ -16,7 +16,8 @@ class RedirectResponse(Response):
         headers: dict[str, str] | None = None,
     ) -> None:
         """Create a redirect response to the given URL."""
-        merged = {"location": url, **(headers or {})}
+        safe_url = url.replace("\r", "").replace("\n", "")
+        merged = {"location": safe_url, **(headers or {})}
         super().__init__(
             content=b"",
             status_code=status_code,

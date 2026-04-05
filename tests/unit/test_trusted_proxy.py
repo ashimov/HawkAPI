@@ -112,11 +112,11 @@ class TestTrustedProxyMiddleware:
         assert resp["scope"]["scheme"] == "https"
 
     @pytest.mark.asyncio
-    async def test_multiple_ips_in_x_forwarded_for_takes_first(self):
-        """When X-Forwarded-For has multiple IPs, the leftmost (first) should be used."""
+    async def test_multiple_ips_in_x_forwarded_for_takes_rightmost_non_trusted(self):
+        """When X-Forwarded-For has multiple IPs, the rightmost non-trusted IP is used."""
         app = TrustedProxyMiddleware(
             _dummy_app,
-            trusted_proxies=["127.0.0.0/8"],
+            trusted_proxies=["127.0.0.0/8", "10.0.0.0/8"],
         )
         resp = await _call_app(
             app,
@@ -126,7 +126,8 @@ class TestTrustedProxyMiddleware:
             ],
         )
         assert resp["status"] == 200
-        assert resp["scope"]["client"] == ("203.0.113.50", 0)
+        # 172.16.0.1 is the rightmost non-trusted IP (10.0.0.0/8 is trusted)
+        assert resp["scope"]["client"] == ("172.16.0.1", 0)
 
     @pytest.mark.asyncio
     async def test_non_http_passthrough(self):

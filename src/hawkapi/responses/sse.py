@@ -35,7 +35,7 @@ class ServerSentEvent:
             lines.append(f"event: {self.event}")
         if self.retry is not None:
             lines.append(f"retry: {self.retry}")
-        for line in self.data.split("\n"):
+        for line in self.data.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
             lines.append(f"data: {line}")
         lines.append("")
         lines.append("")

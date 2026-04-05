@@ -56,21 +56,18 @@ def format_msgspec_error(
     body: Any = None,
 ) -> list[ValidationErrorDetail]:
     """Convert a msgspec ValidationError into a flat list of error details."""
+    import re
+
     msg = str(exc)
-    # msgspec errors look like: "Expected `int`, got `str` - at `$.age`"
-    # Parse the field path from the error message
     errors: list[ValidationErrorDetail] = []
 
-    if " - at `$." in msg:
-        parts = msg.rsplit(" - at `$.", 1)
-        message = parts[0].strip()
-        field = parts[1].rstrip("`").strip()
+    # msgspec errors look like: "Expected `int`, got `str` - at `$.age`"
+    # Use regex for robust extraction of the field path
+    match = re.search(r" - at `\$\.?(.+?)`\s*$", msg)
+    if match:
+        field = match.group(1)
+        message = msg[: match.start()].strip()
         errors.append(ValidationErrorDetail(field=field, message=message))
-    elif " - at `$" in msg:
-        parts = msg.rsplit(" - at `$", 1)
-        message = parts[0].strip()
-        field = parts[1].rstrip("`").strip()
-        errors.append(ValidationErrorDetail(field=field or "$", message=message))
     else:
         errors.append(ValidationErrorDetail(field="$", message=msg))
 

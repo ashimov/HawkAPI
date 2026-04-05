@@ -36,20 +36,37 @@ class SecurityHeadersMiddleware(Middleware):
         super().__init__(app)
         self._headers: list[tuple[bytes, bytes]] = []
 
+        def _safe_encode(value: str, name: str) -> bytes:
+            if "\r" in value or "\n" in value:
+                raise ValueError(f"Header value for {name!r} contains illegal CRLF characters")
+            return value.encode("latin-1")
+
         if content_type_options:
-            self._headers.append((b"x-content-type-options", content_type_options.encode()))
+            val = _safe_encode(content_type_options, "content_type_options")
+            self._headers.append((b"x-content-type-options", val))
         if frame_options:
-            self._headers.append((b"x-frame-options", frame_options.encode()))
+            val = _safe_encode(frame_options, "frame_options")
+            self._headers.append((b"x-frame-options", val))
         if xss_protection:
-            self._headers.append((b"x-xss-protection", xss_protection.encode()))
+            val = _safe_encode(xss_protection, "xss_protection")
+            self._headers.append((b"x-xss-protection", val))
         if hsts:
-            self._headers.append((b"strict-transport-security", hsts.encode()))
+            val = _safe_encode(hsts, "hsts")
+            self._headers.append((b"strict-transport-security", val))
         if referrer_policy:
-            self._headers.append((b"referrer-policy", referrer_policy.encode()))
+            val = _safe_encode(referrer_policy, "referrer_policy")
+            self._headers.append((b"referrer-policy", val))
         if permissions_policy:
-            self._headers.append((b"permissions-policy", permissions_policy.encode()))
+            self._headers.append(
+                (b"permissions-policy", _safe_encode(permissions_policy, "permissions_policy"))
+            )
         if content_security_policy:
-            self._headers.append((b"content-security-policy", content_security_policy.encode()))
+            self._headers.append(
+                (
+                    b"content-security-policy",
+                    _safe_encode(content_security_policy, "content_security_policy"),
+                )
+            )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":

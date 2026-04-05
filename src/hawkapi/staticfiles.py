@@ -81,12 +81,17 @@ class StaticFiles:
             await response(scope, receive, send)
             return
 
-        # For HEAD requests, wrap send to suppress body
+        # For HEAD requests, wrap send to suppress body after first chunk
         actual_send = send
         if method == "HEAD":
+            _body_sent = False
 
             async def head_send(message: dict[str, Any]) -> None:
+                nonlocal _body_sent
                 if message["type"] == "http.response.body":
+                    if _body_sent:
+                        return  # Suppress subsequent body chunks
+                    _body_sent = True
                     message = {**message, "body": b"", "more_body": False}
                 await actual_send(message)
 
@@ -140,9 +145,18 @@ class StaticFiles:
         # Check conditional headers
         headers_raw = dict(scope.get("headers", []))
         if_none_match = headers_raw.get(b"if-none-match", b"").decode("latin-1")
-        if if_none_match == etag:
-            await _send_304(send, etag, last_modified, self.max_age)
-            return True
+        if if_none_match:
+            # Support wildcard and multi-value If-None-Match (RFC 7232 §3.2)
+            if if_none_match.strip() == "*":
+                await _send_304(send, etag, last_modified, self.max_age)
+                return True
+            # Strip W/ prefix for weak comparison and check each ETag
+            etag_value = etag.removeprefix("W/")
+            for candidate in if_none_match.split(","):
+                candidate = candidate.strip().removeprefix("W/")
+                if candidate == etag_value:
+                    await _send_304(send, etag, last_modified, self.max_age)
+                    return True
 
         if_modified = headers_raw.get(b"if-modified-since")
         if if_modified is not None and not if_none_match:

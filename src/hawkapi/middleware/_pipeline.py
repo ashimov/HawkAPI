@@ -6,25 +6,31 @@ Each middleware wraps the next as an onion model.
 
 from __future__ import annotations
 
+import dataclasses
+from dataclasses import dataclass
 from typing import Any
 
 from hawkapi._types import ASGIApp
 from hawkapi.middleware.base import Middleware
 
 
+@dataclass(frozen=True, slots=True)
+class MiddlewareEntry:
+    """A middleware class with optional configuration."""
+
+    cls: type[Middleware]
+    kwargs: dict[str, Any] = dataclasses.field(default_factory=dict)
+
+
 def build_pipeline(
-    middleware_stack: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]],
+    middleware_stack: list[MiddlewareEntry],
     app: ASGIApp,
 ) -> ASGIApp:
     """Build middleware chain. Applied in reverse order (first added = outermost).
 
-    Each item is either a middleware class or a tuple of (class, kwargs).
+    Each entry contains a middleware class and optional kwargs.
     """
     handler = app
-    for item in reversed(middleware_stack):
-        if isinstance(item, tuple):
-            cls, kwargs = item
-            handler = cls(handler, **kwargs)
-        else:
-            handler = item(handler)
+    for entry in reversed(middleware_stack):
+        handler = entry.cls(handler, **entry.kwargs)
     return handler

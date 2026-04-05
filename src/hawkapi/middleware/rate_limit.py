@@ -87,12 +87,14 @@ class RateLimitMiddleware(Middleware):
 
 async def _send_429(send: Send, retry_after: float) -> None:
     """Send a 429 Too Many Requests response."""
+    body = b'{"detail":"Too Many Requests"}'
     await send(
         {
             "type": "http.response.start",
             "status": 429,
             "headers": [
                 (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode("latin-1")),
                 (b"retry-after", str(int(retry_after) + 1).encode("latin-1")),
             ],
         }
@@ -100,7 +102,7 @@ async def _send_429(send: Send, retry_after: float) -> None:
     await send(
         {
             "type": "http.response.body",
-            "body": b'{"detail":"Too Many Requests"}',
+            "body": body,
         }
     )
 

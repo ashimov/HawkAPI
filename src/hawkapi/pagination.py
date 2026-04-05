@@ -53,7 +53,11 @@ class CursorParams(msgspec.Struct, frozen=True):
 
 
 class Page[T](msgspec.Struct):
-    """Offset-paginated response wrapper."""
+    """Offset-paginated response wrapper.
+
+    Note: ``size`` should be the actual page size used (e.g. ``params.limit``),
+    not the raw user-requested size, to ensure correct page count calculation.
+    """
 
     items: list[T]
     total: int
@@ -62,10 +66,12 @@ class Page[T](msgspec.Struct):
     pages: int = 0
 
     def __post_init__(self) -> None:
-        if self.total == 0 or self.size <= 0:
+        # Use the actual number of items requested (size) for page calculation
+        effective_size = self.size
+        if effective_size <= 0 or self.total == 0:
             force_setattr(self, "pages", 0)
         else:
-            force_setattr(self, "pages", math.ceil(self.total / self.size))
+            force_setattr(self, "pages", math.ceil(self.total / effective_size))
 
 
 class CursorPage[T](msgspec.Struct):

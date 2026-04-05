@@ -1,3 +1,4 @@
+from hawkapi.middleware._pipeline import MiddlewareEntry
 from hawkapi.middleware.base import Middleware
 from hawkapi.middleware.circuit_breaker import CircuitBreakerMiddleware
 from hawkapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,7 @@ __all__ = [
     "GZipMiddleware",
     "HTTPSRedirectMiddleware",
     "Middleware",
+    "MiddlewareEntry",
     "RateLimitMiddleware",
     "RequestIDMiddleware",
     "RequestLimitsMiddleware",

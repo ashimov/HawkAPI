@@ -54,10 +54,13 @@ class TestEncodeForContentType:
         result = encode_for_content_type({"key": "value"}, "text/xml")
         assert b'"key"' in result
 
-    def test_msgpack_falls_back_to_json(self):
-        # msgpack encoder is None (placeholder), so falls back to JSON
+    def test_msgpack_encodes_as_msgpack(self):
+        # msgpack encoder is now real — result should be valid msgpack
+        import msgspec
+
         result = encode_for_content_type({"key": "value"}, "application/msgpack")
-        assert b'"key"' in result
+        decoded = msgspec.msgpack.decode(result)
+        assert decoded == {"key": "value"}
 
     def test_encodes_list(self):
         result = encode_for_content_type([1, 2, 3], "application/json")

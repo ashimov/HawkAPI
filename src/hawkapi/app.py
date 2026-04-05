@@ -9,6 +9,8 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+from hawkapi._docs import setup_docs_routes
+from hawkapi._health import setup_health_routes
 from hawkapi._types import ASGIApp, Receive, Scope, Send
 from hawkapi.background import BackgroundTasks
 from hawkapi.di.container import Container
@@ -17,7 +19,7 @@ from hawkapi.di.scope import Scope as DIScope
 from hawkapi.exceptions import HTTPException
 from hawkapi.lifespan.hooks import HookRegistry
 from hawkapi.lifespan.manager import LifespanManager
-from hawkapi.middleware._pipeline import build_pipeline
+from hawkapi.middleware._pipeline import MiddlewareEntry, build_pipeline
 from hawkapi.middleware.base import Middleware
 from hawkapi.requests.request import Request, RequestEntityTooLarge
 from hawkapi.responses.json_response import JSONResponse
@@ -74,9 +76,7 @@ class HawkAPI(Router):
         self.max_body_size = max_body_size
         self.container = container or Container()
         self._exception_handlers: dict[type[Exception], Callable[..., Any]] = {}
-        self._middleware_stack: list[
-            type[Middleware] | tuple[type[Middleware], dict[str, Any]]
-        ] = []
+        self._middleware_stack: list[MiddlewareEntry] = []
         self._pipeline: ASGIApp | None = None
         self._hooks = HookRegistry()
         self._lifespan_func = lifespan
@@ -84,6 +84,7 @@ class HawkAPI(Router):
         self._plugins: list[Any] = []
         self._permission_policy: Any = None
         self._request_timeout = request_timeout
+        self._in_flight_lock = asyncio.Lock()
         self._in_flight = 0
 
         # Observability
@@ -97,7 +98,10 @@ class HawkAPI(Router):
                 obs_config = observability
             else:
                 obs_config = ObservabilityConfig()
-            self._middleware_stack.insert(0, (ObservabilityMiddleware, {"config": obs_config}))
+            self._middleware_stack.insert(
+                0,
+                MiddlewareEntry(cls=ObservabilityMiddleware, kwargs={"config": obs_config}),
+            )
 
         # OpenAPI docs
         self._openapi_url = openapi_url
@@ -112,21 +116,29 @@ class HawkAPI(Router):
             self._redoc_url = None
             self._scalar_url = None
         else:
-            self._setup_docs_routes()
-
-        # Health check endpoint
-        if health_url is not None:
-            self._setup_health_route(health_url)
+            setup_docs_routes(
+                self,
+                openapi_url=self._openapi_url,
+                docs_url=self._docs_url,
+                redoc_url=self._redoc_url,
+                scalar_url=self._scalar_url,
+            )
 
         # Health probes
         self._readiness_checks: dict[str, Callable[..., Any]] = {}
-        if readyz_url is not None:
-            self._setup_readyz_route(readyz_url)
-        if livez_url is not None:
-            self._setup_livez_route(livez_url)
+        setup_health_routes(
+            self,
+            health_url=health_url,
+            readyz_url=readyz_url,
+            livez_url=livez_url,
+        )
 
         # Graceful shutdown: wait for in-flight requests
         self._hooks.on_shutdown(self._wait_for_in_flight)
+
+        # Plugin lifecycle hooks
+        self._hooks.on_startup(self._run_plugin_startup)
+        self._hooks.on_shutdown(self._run_plugin_shutdown)
 
         logger.debug("HawkAPI initialized: %s v%s", title, version)
 
@@ -192,115 +204,6 @@ class HawkAPI(Router):
         self._invalidate_openapi_cache()
         super().include_controller(controller_class)
 
-    def _setup_docs_routes(self) -> None:
-        """Register OpenAPI documentation routes."""
-        if self._openapi_url is None:
-            return
-
-        openapi_url = self._openapi_url
-
-        @self.get(openapi_url, include_in_schema=False)
-        async def openapi_schema(request: Request) -> dict[str, Any]:
-            spec = self.openapi()
-            root_path = request.scope.get("root_path", "")
-            if root_path:
-                spec = {**spec, "servers": [{"url": root_path}]}
-            return spec
-
-        _ = openapi_schema  # registered via decorator
-
-        if self._docs_url is not None:
-            docs_url = self._docs_url
-
-            @self.get(docs_url, include_in_schema=False)
-            async def swagger_ui(request: Request) -> Response:
-                from hawkapi.openapi.ui import get_swagger_ui_html
-
-                root_path = request.scope.get("root_path", "")
-                html = get_swagger_ui_html(self.title, root_path + openapi_url)
-                return Response(
-                    content=html.encode(),
-                    status_code=200,
-                    content_type="text/html; charset=utf-8",
-                )
-
-            _ = swagger_ui  # registered via decorator
-
-        if self._redoc_url is not None:
-            redoc_url = self._redoc_url
-
-            @self.get(redoc_url, include_in_schema=False)
-            async def redoc_ui(request: Request) -> Response:
-                from hawkapi.openapi.ui import get_redoc_html
-
-                root_path = request.scope.get("root_path", "")
-                html = get_redoc_html(self.title, root_path + openapi_url)
-                return Response(
-                    content=html.encode(),
-                    status_code=200,
-                    content_type="text/html; charset=utf-8",
-                )
-
-            _ = redoc_ui  # registered via decorator
-
-        if self._scalar_url is not None:
-            scalar_url = self._scalar_url
-
-            @self.get(scalar_url, include_in_schema=False)
-            async def scalar_ui(request: Request) -> Response:
-                from hawkapi.openapi.ui import get_scalar_ui_html
-
-                root_path = request.scope.get("root_path", "")
-                html = get_scalar_ui_html(self.title, root_path + openapi_url)
-                return Response(
-                    content=html.encode(),
-                    status_code=200,
-                    content_type="text/html; charset=utf-8",
-                )
-
-            _ = scalar_ui  # registered via decorator
-
-    def _setup_health_route(self, health_url: str) -> None:
-        """Register a lightweight health check endpoint."""
-
-        @self.get(health_url, include_in_schema=False)
-        async def healthz(request: Request) -> dict[str, str]:
-            return {"status": "ok"}
-
-        _ = healthz
-
-    def _setup_livez_route(self, livez_url: str) -> None:
-        """Register the liveness probe endpoint."""
-
-        @self.get(livez_url, include_in_schema=False)
-        async def livez(request: Request) -> dict[str, str]:
-            return {"status": "alive"}
-
-        _ = livez
-
-    def _setup_readyz_route(self, readyz_url: str) -> None:
-        """Register the readiness probe endpoint."""
-
-        @self.get(readyz_url, include_in_schema=False)
-        async def readyz(request: Request) -> Response:
-            checks: dict[str, dict[str, Any]] = {}
-            all_ok = True
-            for name, check_fn in self._readiness_checks.items():
-                ok, detail = await check_fn()
-                checks[name] = {"ok": ok, "detail": detail}
-                if not ok:
-                    all_ok = False
-            status = "ready" if all_ok else "not_ready"
-            status_code = 200 if all_ok else 503
-            body = encode_response({"status": status, "checks": checks})
-            return Response(
-                content=body,
-                status_code=status_code,
-                content_type="application/json",
-            )
-
-        _ = readyz
-
     def readiness_check(self, name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Register a readiness check (decorator).
 
@@ -329,12 +232,12 @@ class HawkAPI(Router):
 
         Middleware is applied in order: first added = outermost (runs first).
         """
-        if kwargs:
-            self._middleware_stack.append((middleware_class, kwargs))
-        else:
-            self._middleware_stack.append(middleware_class)
+        self._middleware_stack.append(MiddlewareEntry(cls=middleware_class, kwargs=kwargs))
         # Invalidate pipeline cache
         self._pipeline = None
+        # Notify plugins
+        for plugin in self._plugins:
+            plugin.on_middleware_added(middleware_class, kwargs)
 
     # --- Lifecycle API ---
 
@@ -363,6 +266,16 @@ class HawkAPI(Router):
                 self._in_flight,
                 timeout,
             )
+
+    def _run_plugin_startup(self) -> None:
+        """Call on_startup() on all registered plugins."""
+        for plugin in self._plugins:
+            plugin.on_startup()
+
+    def _run_plugin_shutdown(self) -> None:
+        """Call on_shutdown() on all registered plugins."""
+        for plugin in self._plugins:
+            plugin.on_shutdown()
 
     # --- Exception handlers ---
 
@@ -486,13 +399,185 @@ class HawkAPI(Router):
                 kwargs[name] = ws
         return kwargs, di_scope
 
+    def _make_route_handler(self, result: Any) -> ASGIApp:
+        """Create an ASGI app that executes a route (for per-route middleware wrapping)."""
+        app_ref = self
+
+        async def _route_app(scope: Scope, receive: Receive, send: Send) -> None:
+            # Re-run the route execution logic without middleware
+            route = result.route
+            plan = route._handler_plan  # pyright: ignore[reportPrivateUsage]
+            request = Request(
+                scope,
+                receive,
+                path_params=result.params,
+                max_body_size=app_ref.max_body_size,
+            )
+            await app_ref._execute_route(scope, receive, send, route, plan, request)
+
+        return _route_app
+
+    async def _execute_route(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+        route: Route,
+        plan: Any,
+        request: Request,
+    ) -> None:
+        """Execute a resolved route — shared by direct dispatch and per-route middleware."""
+        method = scope["method"]
+        di_scope: DIScope | None = None
+        background_tasks = None
+        response: Response | JSONResponse
+        cleanup_stack: list[Any] = []
+        handler_succeeded = False
+        try:
+            if route.permissions and self._permission_policy is not None:
+                await self._permission_policy.check(request, route.permissions)
+            if plan is None or plan.needs_di_scope:
+                di_scope = self.container.scope()
+                await di_scope.__aenter__()
+            if plan is not None:
+                kwargs, cleanup_stack = await resolve_from_plan(
+                    plan, request, di_scope, self.container
+                )
+            else:
+                kwargs, cleanup_stack = await resolve_dependencies(
+                    route.handler, request, di_scope, self.container
+                )
+            if plan is not None and plan.has_background_tasks and plan.bg_tasks_param_name:
+                background_tasks = kwargs.get(plan.bg_tasks_param_name)
+            else:
+                for _k, v in kwargs.items():
+                    if isinstance(v, BackgroundTasks):
+                        background_tasks = v
+                        break
+            if plan is not None:
+                is_async = plan.is_async
+            else:
+                is_async = inspect.iscoroutinefunction(route.handler)
+            if is_async:
+                coro = route.handler(**kwargs)
+                if self._request_timeout is not None:
+                    handler_result = await asyncio.wait_for(coro, timeout=self._request_timeout)
+                else:
+                    handler_result = await coro
+            else:
+                handler_result = await asyncio.to_thread(route.handler, **kwargs)
+            response = self._build_response(handler_result, route.status_code, route.response_model)
+            handler_succeeded = True
+        except TimeoutError:
+            response = Response(
+                content=encode_response(
+                    {
+                        "type": "https://hawkapi.ashimov.com/errors/timeout",
+                        "title": "Request Timeout",
+                        "status": 504,
+                        "detail": f"Handler exceeded {self._request_timeout}s timeout",
+                    }
+                ),
+                status_code=504,
+                content_type="application/problem+json",
+            )
+        except RequestValidationError as exc:
+            response = self._build_validation_error_response(exc)
+        except _MissingCred as exc:
+            response = Response(
+                content=encode_response(
+                    {
+                        "type": "https://hawkapi.ashimov.com/errors/http",
+                        "title": "Unauthorized",
+                        "status": 401,
+                        "detail": exc.detail,
+                    }
+                ),
+                status_code=401,
+                headers=exc.headers,
+                content_type="application/problem+json",
+            )
+        except RequestEntityTooLarge as exc:
+            response = Response(
+                content=encode_response(
+                    {
+                        "type": "https://hawkapi.ashimov.com/errors/payload-too-large",
+                        "title": "Payload Too Large",
+                        "status": 413,
+                        "detail": str(exc),
+                    }
+                ),
+                status_code=413,
+                content_type="application/problem+json",
+            )
+        except HTTPException as exc:
+            response = exc.to_response()
+        except Exception as exc:
+            response = await self._handle_exception(request, exc)
+        finally:
+            for gen in reversed(cleanup_stack):
+                try:
+                    if handler_succeeded:
+                        if inspect.isasyncgen(gen):
+                            with contextlib.suppress(StopAsyncIteration):
+                                await anext(gen)
+                        else:
+                            with contextlib.suppress(StopIteration):
+                                next(gen)
+                    else:
+                        if inspect.isasyncgen(gen):
+                            await gen.aclose()
+                        else:
+                            gen.close()
+                except Exception:
+                    logger.exception("Generator dependency cleanup error")
+
+        if method == "HEAD":
+            if isinstance(response, StreamingResponse):
+                _aclose = getattr(response.body_iterator, "aclose", None)
+                if _aclose is not None:
+                    await _aclose()
+                head_response = Response(
+                    status_code=response.status_code,
+                    headers=dict(response._headers),  # pyright: ignore[reportPrivateUsage]
+                    content_type=response.content_type,
+                )
+                head_response._headers.pop("content-length", None)  # pyright: ignore[reportPrivateUsage]
+                response = head_response
+            elif hasattr(response, "body"):
+                original_len = str(len(response.body))
+                response.body = b""
+                response._headers["content-length"] = original_len  # pyright: ignore[reportPrivateUsage]
+
+        if route.deprecated:
+            response._headers["deprecation"] = "true"  # pyright: ignore[reportPrivateUsage]
+            if route.sunset is not None:
+                response._headers["sunset"] = route.sunset  # pyright: ignore[reportPrivateUsage]
+            if route.deprecation_link is not None:
+                response._headers["link"] = (  # pyright: ignore[reportPrivateUsage]
+                    f'<{route.deprecation_link}>; rel="deprecation"'
+                )
+
+        try:
+            await response(scope, receive, send)
+            if background_tasks is not None:
+                await background_tasks.run()
+        finally:
+            if di_scope is not None:
+                try:
+                    await di_scope.close()
+                except ExceptionGroup:
+                    logger.exception("DI scope teardown errors")
+
     async def _core_handler(self, scope: Scope, receive: Receive, send: Send) -> None:
         """The innermost handler: routing + DI + handler execution."""
-        self._in_flight += 1
+        async with self._in_flight_lock:
+            self._in_flight += 1
         try:
             await self._core_handler_inner(scope, receive, send)
         finally:
-            self._in_flight -= 1
+            async with self._in_flight_lock:
+                self._in_flight -= 1
 
     async def _core_handler_inner(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Inner handler: routing + DI + handler execution."""
@@ -550,6 +635,19 @@ class HawkAPI(Router):
             return
 
         route = result.route
+
+        # If route has per-route middleware, build a mini pipeline
+        if route.middleware:
+            inner = self._make_route_handler(result)
+            for mw in reversed(route.middleware):
+                if isinstance(mw, tuple):
+                    cls, kw = mw
+                    inner = cls(inner, **kw)
+                else:
+                    inner = mw(inner)
+            await inner(scope, receive, send)
+            return
+
         plan = route._handler_plan  # pyright: ignore[reportPrivateUsage]
         request = Request(
             scope,
@@ -557,145 +655,7 @@ class HawkAPI(Router):
             path_params=result.params,
             max_body_size=self.max_body_size,
         )
-
-        # Create a DI scope for this request
-        di_scope: DIScope | None = None
-        background_tasks = None
-        response: Response | JSONResponse
-        cleanup_stack: list[Any] = []
-        try:
-            # Check permissions before DI/handler
-            if route.permissions and self._permission_policy is not None:
-                await self._permission_policy.check(request, route.permissions)
-
-            # Only create DI scope when needed
-            if plan is None or plan.needs_di_scope:
-                di_scope = self.container.scope()
-                await di_scope.__aenter__()
-
-            # Resolve handler arguments
-            if plan is not None:
-                kwargs, cleanup_stack = await resolve_from_plan(
-                    plan, request, di_scope, self.container
-                )
-            else:
-                kwargs, cleanup_stack = await resolve_dependencies(
-                    route.handler, request, di_scope, self.container
-                )
-
-            # Extract BackgroundTasks using plan for O(1) lookup
-            if plan is not None and plan.has_background_tasks and plan.bg_tasks_param_name:
-                background_tasks = kwargs.get(plan.bg_tasks_param_name)
-            else:
-                for _k, v in kwargs.items():
-                    if isinstance(v, BackgroundTasks):
-                        background_tasks = v
-                        break
-
-            # Call the handler (use plan.is_async to avoid per-request inspect)
-            if plan is not None:
-                is_async = plan.is_async
-            else:
-                is_async = inspect.iscoroutinefunction(route.handler)
-
-            if is_async:
-                coro = route.handler(**kwargs)
-            else:
-                coro = asyncio.to_thread(route.handler, **kwargs)
-            if self._request_timeout is not None:
-                handler_result = await asyncio.wait_for(coro, timeout=self._request_timeout)
-            else:
-                handler_result = await coro
-            # Build response
-            response = self._build_response(handler_result, route.status_code, route.response_model)
-        except TimeoutError:
-            response = Response(
-                content=encode_response(
-                    {
-                        "type": "https://hawkapi.ashimov.com/errors/timeout",
-                        "title": "Request Timeout",
-                        "status": 504,
-                        "detail": f"Handler exceeded {self._request_timeout}s timeout",
-                    }
-                ),
-                status_code=504,
-                content_type="application/problem+json",
-            )
-        except RequestValidationError as exc:
-            response = self._build_validation_error_response(exc)
-        except _MissingCred as exc:
-            response = Response(
-                content=encode_response(
-                    {
-                        "type": "https://hawkapi.ashimov.com/errors/http",
-                        "title": "Unauthorized",
-                        "status": 401,
-                        "detail": exc.detail,
-                    }
-                ),
-                status_code=401,
-                headers=exc.headers,
-                content_type="application/problem+json",
-            )
-        except RequestEntityTooLarge as exc:
-            response = Response(
-                content=encode_response(
-                    {
-                        "type": "https://hawkapi.ashimov.com/errors/payload-too-large",
-                        "title": "Payload Too Large",
-                        "status": 413,
-                        "detail": str(exc),
-                    }
-                ),
-                status_code=413,
-                content_type="application/problem+json",
-            )
-        except HTTPException as exc:
-            response = exc.to_response()
-        except Exception as exc:
-            response = await self._handle_exception(request, exc)
-        finally:
-            # Clean up generator dependencies (run code after yield)
-            for gen in reversed(cleanup_stack):
-                try:
-                    if inspect.isasyncgen(gen):
-                        with contextlib.suppress(StopAsyncIteration):
-                            await anext(gen)
-                    else:
-                        with contextlib.suppress(StopIteration):
-                            next(gen)
-                except Exception:
-                    logger.exception("Generator dependency cleanup error")
-
-        # HEAD requests should not include body
-        if method == "HEAD":
-            if isinstance(response, StreamingResponse):
-                response = Response(status_code=response.status_code)
-            elif hasattr(response, "body"):
-                response.body = b""
-
-        # Inject RFC 8594 deprecation headers for deprecated routes
-        if route.deprecated:
-            response._headers["deprecation"] = "true"  # pyright: ignore[reportPrivateUsage]
-            if route.sunset is not None:
-                response._headers["sunset"] = route.sunset  # pyright: ignore[reportPrivateUsage]
-            if route.deprecation_link is not None:
-                response._headers["link"] = (  # pyright: ignore[reportPrivateUsage]
-                    f'<{route.deprecation_link}>; rel="deprecation"'
-                )
-
-        try:
-            await response(scope, receive, send)
-
-            # Run background tasks after response is sent
-            if background_tasks is not None:
-                await background_tasks.run()
-        finally:
-            if di_scope is not None:
-                try:
-                    await di_scope.close()
-                except ExceptionGroup:
-                    logger.exception("DI scope teardown errors")
+        await self._execute_route(scope, receive, send, route, plan, request)
 
     def _build_response(
         self,
@@ -741,6 +701,10 @@ class HawkAPI(Router):
 
     async def _handle_exception(self, request: Request, exc: Exception) -> Response | JSONResponse:
         """Handle an unhandled exception."""
+        # Notify plugins first
+        for plugin in self._plugins:
+            plugin.on_exception(request, exc)
+
         for exc_class, handler in self._exception_handlers.items():
             if isinstance(exc, exc_class):
                 try:

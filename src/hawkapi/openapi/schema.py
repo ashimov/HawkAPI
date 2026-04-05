@@ -314,10 +314,9 @@ def _get_base_type(annotation: Any) -> Any:
         args = get_args(annotation)
         if args:
             first = args[0]
-            if isinstance(first, type):
-                for arg in args[1:]:
-                    if isinstance(arg, (ParamMarker, msgspec.Meta)):
-                        return first
+            for arg in args[1:]:
+                if isinstance(arg, (ParamMarker, msgspec.Meta)):
+                    return first
     return annotation
 
 

@@ -33,6 +33,11 @@ class Response:
         """Response headers as a string-to-string dictionary."""
         return self._headers
 
+    @staticmethod
+    def _sanitize_header_value(value: str) -> str:
+        """Strip CR/LF from header values to prevent header injection."""
+        return value.replace("\r", "").replace("\n", "")
+
     def _build_raw_headers(self) -> list[tuple[bytes, bytes]]:
         raw: list[tuple[bytes, bytes]] = []
         has_content_type = False
@@ -40,12 +45,15 @@ class Response:
             lower = key.lower()
             if lower == "content-type":
                 has_content_type = True
-            raw.append((lower.encode("latin-1"), value.encode("latin-1")))
+            safe_value = self._sanitize_header_value(value)
+            raw.append((lower.encode("latin-1"), safe_value.encode("latin-1")))
 
         if not has_content_type:
             raw.append((b"content-type", self.content_type.encode("latin-1")))
 
-        raw.append((b"content-length", str(len(self.body)).encode("latin-1")))
+        # Only auto-compute content-length if not explicitly set in headers
+        if "content-length" not in self._headers:
+            raw.append((b"content-length", str(len(self.body)).encode("latin-1")))
         return raw
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:

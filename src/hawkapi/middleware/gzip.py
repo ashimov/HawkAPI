@@ -79,6 +79,12 @@ class _GZipResponder:
     async def send(self, message: dict[str, Any]) -> None:
         if message["type"] == "http.response.start":
             self._initial_message = message
+            # Skip compression if response is already encoded
+            for k, _ in message.get("headers", []):
+                if k == b"content-encoding":
+                    self._pass_through = True
+                    await self._send(message)
+                    return
             return
 
         if message["type"] != "http.response.body":

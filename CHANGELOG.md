@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-04-05
+
+### Added
+
+- CSRF Middleware (double-submit cookie pattern)
+- Session Middleware (signed cookie sessions)
+- Redis Rate Limiter (`RedisRateLimitMiddleware`)
+- Per-route middleware support (`@app.get("/path", middleware=[...])`)
+- Streaming request body (`request.stream()`)
+- MessagePack content negotiation
+- W3C Trace Context propagation (traceparent/tracestate)
+- Plugin API new hooks: `on_startup`, `on_shutdown`, `on_exception`, `on_middleware_added`
+- `hawkapi init` CLI command
+- TestClient cookie jar with automatic Set-Cookie tracking
+- TestClient `CaseInsensitiveDict` headers
+- TestClient assertion helpers: `is_success`, `is_redirect`, `raise_for_status()`
+- `MiddlewareEntry` dataclass for typed middleware configuration
+- Improved scaffold templates with DI, middleware, and test examples
+- New benchmarks: streaming, WebSocket, concurrent load, memory profiling
+
+### Fixed
+
+- Multipart `rstrip` corrupting binary uploads
+- StreamingResponse not sending terminal ASGI chunk on error
+- CRLF injection in RedirectResponse
+- Radix tree silent param name/type conflicts
+- Circuit breaker holding asyncio.Lock during I/O
+- X-Forwarded-For IP spoofing (now uses rightmost non-trusted)
+- HEAD responses preserving correct Content-Length
+- Generator dependency cleanup distinguishes success/error
+- Duplicate Content-Length in middleware after_response hook
+- GZip double-compression of already-encoded responses
+- FileResponse more_body flag on exact chunk boundaries
+- asyncio.Lock created lazily in DI Provider
+- Settings._coerce crash on Optional[T] types
+- WebSocket send methods now check connection state
+- Cookie parser strips RFC 6265 quoted values
+- And 40+ additional bug fixes across all modules
+
+### Changed
+
+- `app.py` refactored: extracted `_docs.py`, `_health.py`, `_execute_route()`
+- Controller instances created per-request (was shared singleton)
+- Middleware stack uses `MiddlewareEntry` dataclass
+- Development Status changed from "Production/Stable" to "Beta"
+
 ## [0.1.1] - 2026-03-04
 
 ### Added
@@ -111,5 +157,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pyright strict mode compliance (0 errors)
 - MkDocs documentation site
 
+[0.1.2]: https://github.com/ashimov/HawkAPI/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/ashimov/HawkAPI/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/ashimov/HawkAPI/releases/tag/v0.1.0

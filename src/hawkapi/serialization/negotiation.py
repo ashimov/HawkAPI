@@ -7,12 +7,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from hawkapi.serialization.encoder import encode_response
+from hawkapi.serialization.encoder import encode_response, encode_response_msgpack
 
 # Format registry: media_type -> (encoder, content_type)
 _FORMATS: dict[str, tuple[Any, str]] = {
     "application/json": (encode_response, "application/json"),
-    "application/msgpack": (None, "application/msgpack"),  # Placeholder for future msgpack
+    "application/msgpack": (encode_response_msgpack, "application/msgpack"),
+    "application/x-msgpack": (encode_response_msgpack, "application/x-msgpack"),
 }
 
 
@@ -28,12 +29,13 @@ def negotiate_content_type(accept_header: str | None) -> str:
     accepted: list[tuple[str, float]] = []
     for item in accept_header.split(","):
         item = item.strip()
-        if ";q=" in item:
-            media, _, q = item.partition(";q=")
-            try:
-                quality = float(q.strip())
-            except ValueError:
-                quality = 1.0
+        if ";" in item:
+            media, _, params = item.partition(";")
+            # Parse quality factor tolerantly (handles spaces around q=)
+            import re
+
+            q_match = re.search(r"q\s*=\s*([0-9.]+)", params, re.IGNORECASE)
+            quality = float(q_match.group(1)) if q_match else 1.0
             accepted.append((media.strip(), quality))
         else:
             accepted.append((item.strip(), 1.0))

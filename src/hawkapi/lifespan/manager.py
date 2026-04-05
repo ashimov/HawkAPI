@@ -34,8 +34,9 @@ class LifespanManager:
         """Handle ASGI lifespan protocol messages."""
         while True:
             message = await receive()
+            msg_type = message["type"]
 
-            if message["type"] == "lifespan.startup":
+            if msg_type == "lifespan.startup":
                 try:
                     await self._startup(scope)
                     await send({"type": "lifespan.startup.complete"})
@@ -48,12 +49,16 @@ class LifespanManager:
                     )
                     return
 
-            elif message["type"] == "lifespan.shutdown":
+            elif msg_type == "lifespan.shutdown":
                 try:
                     await self._shutdown()
                 except Exception:
                     logger.exception("Error during shutdown")
                 await send({"type": "lifespan.shutdown.complete"})
+                return
+
+            else:
+                # Unknown message type — exit to avoid infinite loop
                 return
 
     async def _startup(self, scope: Scope) -> None:

@@ -3,7 +3,8 @@
 Run with: uvicorn examples.hello_world:app
 Or with:  granian --interface asgi examples.hello_world:app
 
-Demonstrates: routing, validation, DI, middleware, WebSocket, controllers, security.
+Demonstrates: routing, validation, DI, middleware, WebSocket, controllers,
+security, CSRF, sessions, per-route middleware, and streaming uploads.
 """
 
 from typing import Annotated
@@ -27,6 +28,8 @@ from hawkapi import (
     post,
 )
 from hawkapi.middleware.cors import CORSMiddleware
+from hawkapi.middleware.csrf import CSRFMiddleware
+from hawkapi.middleware.session import SessionMiddleware
 from hawkapi.middleware.timing import TimingMiddleware
 
 # --- Models ---
@@ -93,6 +96,19 @@ app = HawkAPI(
 
 app.add_middleware(TimingMiddleware)
 app.add_middleware(CORSMiddleware, allow_origins=["*"])
+
+# CSRF protection: requires a matching token in the X-CSRF-Token header (or
+# form field) for unsafe methods (POST, PUT, DELETE, PATCH). A signed CSRF
+# cookie is set automatically on safe requests (GET, HEAD, OPTIONS).
+app.add_middleware(CSRFMiddleware, secret="change-me-to-a-real-secret-key")
+
+# Session middleware: stores session data in a signed cookie. Access session
+# data via request.scope["session"] inside route handlers.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key="another-secret-for-sessions",
+    max_age=3600,  # 1 hour
+)
 
 # --- Lifecycle hooks ---
 
@@ -201,3 +217,74 @@ async def value_error_handler(request: Request, exc: ValueError):
         status_code=400,
         content_type="application/json",
     )
+
+
+# --- Session example ---
+
+
+@app.get("/session")
+async def read_session(request: Request):
+    """Read session data. Visit /session/set?name=Alice first to populate it."""
+    session: dict = request.scope.get("session", {})
+    return {"session": session}
+
+
+@app.get("/session/set")
+async def write_session(request: Request, name: str = "World"):
+    """Write to the session. The SessionMiddleware persists changes in a signed cookie."""
+    session: dict = request.scope.get("session", {})
+    session["name"] = name
+    session["visits"] = session.get("visits", 0) + 1
+    # Mutating the dict in scope is enough -- SessionMiddleware detects changes
+    # and sets the updated cookie automatically.
+    return {"message": f"Session updated for {name}", "session": session}
+
+
+# --- Per-route middleware example ---
+# Apply middleware only to specific routes instead of the whole app.
+# Pass a list of middleware classes (or tuples of class + kwargs) to the
+# decorator's `middleware` parameter.
+
+
+@app.get("/timed", middleware=[TimingMiddleware])
+async def timed_route():
+    """This route has TimingMiddleware applied only to itself."""
+    return {"message": "This response includes a Server-Timing header"}
+
+
+@app.get(
+    "/protected",
+    middleware=[(CSRFMiddleware, {"secret": "per-route-secret"})],
+)
+async def protected_route():
+    """This route has its own CSRF middleware with a separate secret."""
+    return {"message": "CSRF-protected at the route level"}
+
+
+# --- Streaming upload with request.stream() ---
+
+
+@app.post("/upload")
+async def streaming_upload(request: Request):
+    """Accept a file upload and track progress using request.stream().
+
+    Instead of buffering the entire body in memory, this reads chunks as they
+    arrive from the client. Useful for large uploads.
+
+    Example with curl:
+        curl -X POST http://localhost:8000/upload \
+             --data-binary @largefile.bin \
+             -H "Content-Type: application/octet-stream"
+    """
+    total_bytes = 0
+    chunk_count = 0
+
+    async for chunk in request.stream():
+        total_bytes += len(chunk)
+        chunk_count += 1
+
+    return {
+        "message": "Upload complete",
+        "total_bytes": total_bytes,
+        "chunks_received": chunk_count,
+    }

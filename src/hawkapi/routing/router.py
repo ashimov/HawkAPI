@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from hawkapi.middleware.base import Middleware
 
 from hawkapi._types import ASGIApp, RouteHandler
 from hawkapi.di.param_plan import build_handler_plan, extract_path_param_names
@@ -55,6 +58,7 @@ class Router:
         deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
+        middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
     ) -> Route:
         """Register a route directly."""
         full_path = self.prefix + ("/" + path.strip("/") if path.strip("/") else "") or "/"
@@ -82,6 +86,7 @@ class Router:
             deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
+            middleware=tuple(middleware) if middleware else None,
             _handler_plan=plan,
         )
         self._tree.insert(route)
@@ -104,6 +109,7 @@ class Router:
         deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
+        middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         def decorator(handler: RouteHandler) -> RouteHandler:
             self.add_route(
@@ -122,6 +128,7 @@ class Router:
                 deprecation_link=deprecation_link,
                 version=version,
                 permissions=permissions,
+                middleware=middleware,
             )
             return handler
 
@@ -143,6 +150,7 @@ class Router:
         deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
+        middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         """Register a GET route handler."""
         return self._route_decorator(
@@ -160,6 +168,7 @@ class Router:
             deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
+            middleware=middleware,
         )
 
     def post(
@@ -178,6 +187,7 @@ class Router:
         deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
+        middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         """Register a POST route handler."""
         return self._route_decorator(
@@ -195,6 +205,7 @@ class Router:
             deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
+            middleware=middleware,
         )
 
     def put(
@@ -213,6 +224,7 @@ class Router:
         deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
+        middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         """Register a PUT route handler."""
         return self._route_decorator(
@@ -230,6 +242,7 @@ class Router:
             deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
+            middleware=middleware,
         )
 
     def patch(
@@ -248,6 +261,7 @@ class Router:
         deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
+        middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         """Register a PATCH route handler."""
         return self._route_decorator(
@@ -265,6 +279,7 @@ class Router:
             deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
+            middleware=middleware,
         )
 
     def delete(
@@ -283,6 +298,7 @@ class Router:
         deprecation_link: str | None = None,
         version: str | None = None,
         permissions: list[str] | None = None,
+        middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         """Register a DELETE route handler."""
         return self._route_decorator(
@@ -300,6 +316,7 @@ class Router:
             deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
+            middleware=middleware,
         )
 
     def websocket(
@@ -361,6 +378,7 @@ class Router:
                 deprecation_link=route.deprecation_link,
                 version=route.version,
                 permissions=route.permissions,
+                middleware=route.middleware,
                 _handler_plan=plan,
             )
             self._tree.insert(merged_route)

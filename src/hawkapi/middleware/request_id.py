@@ -38,8 +38,13 @@ class RequestIDMiddleware(Middleware):
                 request_id = value.decode("latin-1")
                 break
 
-        # Reject overly long or injection-prone request IDs
-        if request_id is None or len(request_id) > 128 or "\n" in request_id or "\r" in request_id:
+        # Reject overly long, injection-prone, or non-printable request IDs
+        if (
+            request_id is None
+            or len(request_id) > 128
+            or not request_id.isascii()
+            or any(ord(c) < 0x20 for c in request_id)
+        ):
             request_id = str(uuid.uuid4())
 
         # Store in scope for access by handlers

@@ -20,18 +20,16 @@ class Depends:
             ...
     """
 
-    __slots__ = ("dependency", "name", "use_cache")
+    __slots__ = ("dependency", "name")
 
     def __init__(
         self,
         dependency: Any = None,
         *,
         name: str | None = None,
-        use_cache: bool = True,
     ) -> None:
         self.dependency = dependency
         self.name = name
-        self.use_cache = use_cache
 
     def __repr__(self) -> str:
         if self.name:

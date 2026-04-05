@@ -19,7 +19,6 @@ class RadixNode:
         "path",
         "children",
         "param_child",
-        "wildcard_child",
         "handlers",
         "param_name",
         "param_converter",
@@ -29,7 +28,6 @@ class RadixNode:
         self.path: str = path
         self.children: dict[str, RadixNode] = {}
         self.param_child: RadixNode | None = None
-        self.wildcard_child: RadixNode | None = None
         self.handlers: dict[str, Route] | None = None
         self.param_name: str | None = None
         self.param_converter: Callable[[str], object] | None = None
@@ -75,6 +73,15 @@ class RadixTree:
                     child.param_name = param_name
                     child.param_converter = get_converter(param_type)
                     node.param_child = child
+                else:
+                    existing_name = node.param_child.param_name
+                    existing_converter = node.param_child.param_converter
+                    new_converter = get_converter(param_type)
+                    if existing_name != param_name or existing_converter is not new_converter:
+                        raise ValueError(
+                            f"Route conflict: parameter {{{param_name}:{param_type}}} "
+                            f"conflicts with existing {{{existing_name}}} at the same position"
+                        )
                 node = node.param_child
             else:
                 # Static segment

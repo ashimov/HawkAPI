@@ -9,6 +9,7 @@ from hawkapi._types import RouteHandler
 
 if TYPE_CHECKING:
     from hawkapi.di.param_plan import HandlerPlan
+    from hawkapi.middleware.base import Middleware
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,4 +31,5 @@ class Route:
     deprecation_link: str | None = None
     version: str | None = None
     permissions: list[str] | None = None
+    middleware: tuple[type[Middleware] | tuple[type[Middleware], dict[str, Any]], ...] | None = None
     _handler_plan: HandlerPlan | None = field(default=None, repr=False)

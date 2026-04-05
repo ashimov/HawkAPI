@@ -114,8 +114,11 @@ def parse_multipart(body: bytes, boundary: str) -> FormData:
         else:
             continue
 
-        # Remove trailing \r\n
-        part_body = part_body.rstrip(b"\r\n")
+        # Remove the trailing \r\n boundary separator (not arbitrary bytes)
+        if part_body.endswith(b"\r\n"):
+            part_body = part_body[:-2]
+        elif part_body.endswith(b"\n"):
+            part_body = part_body[:-1]
 
         # Parse headers
         headers: dict[str, str] = {}

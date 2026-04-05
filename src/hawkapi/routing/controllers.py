@@ -22,6 +22,8 @@ Usage:
 
 from __future__ import annotations
 
+import functools
+import inspect
 from collections.abc import Callable
 from typing import Any
 
@@ -229,9 +231,12 @@ class Controller:
 
     @classmethod
     def collect_routes(cls) -> list[tuple[_RouteInfo, Callable[..., Any]]]:
-        """Collect all decorated methods from this controller."""
+        """Collect all decorated methods from this controller.
+
+        A fresh controller instance is created per request to avoid shared
+        mutable state between concurrent requests.
+        """
         routes: list[tuple[_RouteInfo, Callable[..., Any]]] = []
-        instance = cls()
         for name in dir(cls):
             if name.startswith("_"):
                 continue
@@ -241,7 +246,29 @@ class Controller:
             info = getattr(method, _ROUTE_ATTR, None)
             if info is None:
                 continue
-            # Bind method to instance
-            bound = getattr(instance, name)
-            routes.append((info, bound))
+            # Create a wrapper that instantiates the controller per-request
+            _method_name = name
+
+            def make_handler(m_name: str) -> Callable[..., Any]:
+                async def handler(**kwargs: Any) -> Any:
+                    instance = cls()
+                    bound = getattr(instance, m_name)
+                    result = bound(**kwargs)
+                    if inspect.isawaitable(result):
+                        return await result
+                    return result
+
+                # Preserve the original method's signature for DI resolution
+                original = getattr(cls, m_name)
+                functools.update_wrapper(handler, original)
+                # Fix annotations: strip 'self' from the signature
+                sig = inspect.signature(original)
+                params = [p for n, p in sig.parameters.items() if n != "self"]
+                handler.__signature__ = sig.replace(parameters=params)  # type: ignore[attr-defined]
+                # Copy annotations without 'self'
+                anns = getattr(original, "__annotations__", {})
+                handler.__annotations__ = {k: v for k, v in anns.items() if k != "self"}
+                return handler
+
+            routes.append((info, make_handler(_method_name)))
         return routes

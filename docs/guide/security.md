@@ -53,3 +53,7 @@ async def get_data(key: str = Depends(api_key)):
 ```
 
 API keys can also be read from query parameters (`APIKeyQuery`) or cookies (`APIKeyCookie`).
+
+## CSRF Protection
+
+HawkAPI includes built-in CSRF protection via `CSRFMiddleware`, which implements the double-submit cookie pattern. See the [Middleware guide](middleware.md#csrf-middleware) for configuration options and usage examples.

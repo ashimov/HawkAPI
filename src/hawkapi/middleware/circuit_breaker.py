@@ -58,6 +58,7 @@ class CircuitBreakerMiddleware(Middleware):
             return
 
         path: str = scope.get("path", "/")
+        should_reject = False
 
         async with self._lock:
             circuit = self._circuits.get(path)
@@ -72,15 +73,18 @@ class CircuitBreakerMiddleware(Middleware):
                     circuit.state = "HALF_OPEN"
                     circuit.half_open_calls = 0
                 else:
-                    await self._send_503(scope, receive, send, path)
-                    return
+                    should_reject = True
 
             # --- HALF_OPEN state: limit concurrent probes ---
-            if circuit.state == "HALF_OPEN":
+            if not should_reject and circuit.state == "HALF_OPEN":
                 if circuit.half_open_calls >= self.half_open_max_calls:
-                    await self._send_503(scope, receive, send, path)
-                    return
-                circuit.half_open_calls += 1
+                    should_reject = True
+                else:
+                    circuit.half_open_calls += 1
+
+        if should_reject:
+            await self._send_503(scope, receive, send, path)
+            return
 
         # --- Forward to inner app, capturing the status code ---
         status_code: int | None = None

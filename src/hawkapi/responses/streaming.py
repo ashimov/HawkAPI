@@ -61,7 +61,6 @@ class StreamingResponse:
                 "headers": self._build_raw_headers(),
             }
         )
-        completed = False
         try:
             async for chunk in self.body_iterator:
                 await send(
@@ -71,10 +70,8 @@ class StreamingResponse:
                         "more_body": True,
                     }
                 )
-            completed = True
         finally:
             _aclose: Any = getattr(self.body_iterator, "aclose", None)
             if _aclose is not None:
                 await _aclose()
-            if completed:
-                await send({"type": "http.response.body", "body": b"", "more_body": False})
+            await send({"type": "http.response.body", "body": b"", "more_body": False})

@@ -20,9 +20,16 @@ class DebugMiddleware(Middleware):
     ``/_debug/stats`` returns per-path request count, average latency, and error count.
     """
 
-    def __init__(self, app: ASGIApp, *, prefix: str = "/_debug") -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        prefix: str = "/_debug",
+        enabled: bool = True,
+    ) -> None:
         super().__init__(app)
         self._prefix = prefix
+        self._enabled = enabled
         self._stats: dict[str, dict[str, Any]] = defaultdict(
             lambda: {"count": 0, "total_time": 0.0, "errors": 0}
         )
@@ -34,11 +41,11 @@ class DebugMiddleware(Middleware):
 
         path: str = scope["path"]
 
-        if path == f"{self._prefix}/routes":
+        if self._enabled and path == f"{self._prefix}/routes":
             await self._serve_routes(scope, receive, send)
             return
 
-        if path == f"{self._prefix}/stats":
+        if self._enabled and path == f"{self._prefix}/stats":
             await self._serve_stats(scope, receive, send)
             return
 

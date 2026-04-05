@@ -269,13 +269,18 @@ class AuthMiddleware(Middleware):
 | `RequestIDMiddleware` | `X-Request-ID` header (generates UUID4 if missing) |
 | `HTTPSRedirectMiddleware` | Redirect HTTP to HTTPS |
 | `RateLimitMiddleware` | Token bucket rate limiting (429 + Retry-After) |
+| `RedisRateLimitMiddleware` | Redis-backed token bucket rate limiting (distributed) |
 | `RequestLimitsMiddleware` | Max query string / header size enforcement |
 | `CircuitBreakerMiddleware` | Three-state circuit breaker (per-path tracking) |
+| `CSRFMiddleware` | Double-submit cookie CSRF protection |
+| `SessionMiddleware` | Signed cookie-based session management |
 | `ErrorHandlerMiddleware` | Structured error handling pipeline |
 | `PrometheusMiddleware` | Prometheus-compatible `/metrics` endpoint |
 | `StructuredLoggingMiddleware` | JSON request/response logs |
 | `DebugMiddleware` | `/_debug/routes` and `/_debug/stats` endpoints |
 | `ObservabilityMiddleware` | All-in-one tracing, structured logs, metrics |
+
+Middleware is registered globally via `app.add_middleware()`. Each entry is stored as a `MiddlewareEntry` dataclass holding the middleware class and its kwargs, then compiled into an onion-model pipeline at startup.
 
 ### Security
 
@@ -322,6 +327,23 @@ async def events():
 
 return EventSourceResponse(events())
 ```
+
+#### MessagePack Content Negotiation
+
+HawkAPI supports automatic content negotiation via the `Accept` header. Clients requesting `application/msgpack` or `application/x-msgpack` receive MessagePack-encoded responses instead of JSON:
+
+```python
+from hawkapi.serialization.negotiation import negotiate_content_type, encode_for_content_type
+
+# Automatic: clients send Accept: application/msgpack
+# curl -H "Accept: application/msgpack" http://localhost:8000/data
+
+# Manual usage in custom responses:
+content_type = negotiate_content_type(request.headers.get("accept"))
+body = encode_for_content_type(data, content_type)
+```
+
+Both JSON and MessagePack encoders share the same `enc_hook` fallback for `datetime`, `UUID`, `set`, and `bytes` types.
 
 ### WebSocket
 
@@ -401,6 +423,22 @@ app = HawkAPI(max_body_size=1024 * 1024)  # 1 MB (default: 10 MB)
 # Returns 413 Payload Too Large when exceeded
 ```
 
+### Streaming Request Body
+
+Stream the request body in chunks without buffering the entire payload in memory. Useful for large file uploads:
+
+```python
+@app.post("/upload")
+async def upload(request: Request):
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        await process_chunk(chunk)
+    return {"bytes_received": total}
+```
+
+Respects `max_body_size` and raises `RequestEntityTooLarge` if exceeded. Once streamed, calling `request.body()` raises `RuntimeError`; if `body()` was called first, `stream()` yields the cached body as a single chunk.
+
 ### Routers and Controllers
 
 ```python
@@ -433,6 +471,22 @@ class UserController(Controller):
         return {"id": 1}
 
 app.include_controller(UserController)
+```
+
+#### Per-Route Middleware
+
+Apply middleware to individual routes instead of the entire app. Pass a `middleware=` list of middleware classes (or `(class, kwargs)` tuples) to any route decorator:
+
+```python
+from hawkapi.middleware.rate_limit import RateLimitMiddleware
+
+@app.get("/public", middleware=[RateLimitMiddleware])
+async def public():
+    return {"data": "rate-limited route"}
+
+@app.post("/upload", middleware=[(RateLimitMiddleware, {"requests_per_second": 2.0})])
+async def upload(body: UploadBody):
+    return {"status": "ok"}
 ```
 
 ### Static Files
@@ -505,6 +559,65 @@ app.add_middleware(
 
 Rejects oversized requests at the ASGI scope level before body parsing. Returns 414 (query) or 431 (headers).
 
+### CSRF Protection
+
+Double-submit cookie CSRF protection. Safe methods (GET, HEAD, OPTIONS) pass through and receive a signed CSRF token cookie. Unsafe methods require the token in an `X-CSRF-Token` header or `csrf_token` form field:
+
+```python
+from hawkapi.middleware.csrf import CSRFMiddleware
+
+app.add_middleware(
+    CSRFMiddleware,
+    secret="your-secret-key",
+    cookie_name="csrftoken",
+    header_name="x-csrf-token",
+    cookie_secure=True,
+    cookie_samesite="lax",
+)
+```
+
+Returns 403 with `application/problem+json` when the token is missing or mismatched. Tokens are HMAC-SHA256 signed and verified with `hmac.compare_digest` for timing safety.
+
+### Session Middleware
+
+Signed cookie-based sessions using HMAC-SHA256. Session data is serialized with msgspec, base64url-encoded, and stored in a cookie with expiry checking:
+
+```python
+from hawkapi.middleware.session import SessionMiddleware
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key="your-secret-key",
+    session_cookie="session",
+    max_age=14 * 24 * 3600,  # 14 days
+)
+
+@app.get("/dashboard")
+async def dashboard(request: Request):
+    request.scope["session"]["views"] = request.scope["session"].get("views", 0) + 1
+    return {"views": request.scope["session"]["views"]}
+```
+
+The cookie is only set when session data changes (dirty checking via snapshot comparison).
+
+### Redis Rate Limiter
+
+Distributed rate limiting backed by Redis using an atomic Lua-scripted token bucket. Survives restarts and works across multiple processes:
+
+```python
+from hawkapi.middleware.rate_limit_redis import RedisRateLimitMiddleware
+
+app.add_middleware(
+    RedisRateLimitMiddleware,
+    redis_url="redis://localhost:6379",
+    requests_per_second=10.0,
+    burst=20,
+    key_prefix="hawkapi:rl:",
+)
+```
+
+Falls back to in-memory rate limiting automatically when Redis is unavailable. Supports custom key functions for per-user or per-API-key limits.
+
 ### Deprecation Headers
 
 Mark routes as deprecated with RFC 8594 Sunset headers:
@@ -524,6 +637,23 @@ app = HawkAPI(observability=True)
 ```
 
 Every request gets: request ID, structured JSON logs, metrics, and OpenTelemetry spans (if installed).
+
+#### W3C Trace Context
+
+HawkAPI implements [W3C Trace Context](https://www.w3.org/TR/trace-context/) propagation. Incoming `traceparent` and `tracestate` headers are parsed, validated, and propagated to responses. When OpenTelemetry is installed, it delegates to the OTel propagation API; otherwise it uses a built-in manual parser:
+
+```python
+from hawkapi.observability.tracing import extract_context, inject_context
+
+# Extract trace context from incoming request headers
+ctx = extract_context(scope["headers"])
+# ctx = {"trace_id": "4bf9...", "span_id": "00f0...", "trace_flags": "01", "tracestate": ""}
+
+# Inject trace context into outgoing response headers
+headers = inject_context(headers, ctx["trace_id"], ctx["span_id"])
+```
+
+If no valid `traceparent` is present, new trace and span IDs are generated automatically.
 
 ### Serverless Mode
 
@@ -623,7 +753,16 @@ for t in tests:
 
 ## Plugin API
 
-Extend HawkAPI behavior with plugins:
+Extend HawkAPI behavior with plugins. The `Plugin` base class provides six hooks:
+
+| Hook | When it fires |
+|------|---------------|
+| `on_route_registered(route)` | A route is registered; return the (possibly modified) route |
+| `on_schema_generated(spec)` | OpenAPI schema is generated; return the enriched spec |
+| `on_startup()` | Application startup |
+| `on_shutdown()` | Application shutdown |
+| `on_exception(request, exc)` | Unhandled exception, before the exception handler chain |
+| `on_middleware_added(middleware_class, kwargs)` | A middleware is added to the application |
 
 ```python
 from hawkapi.plugins import Plugin
@@ -636,6 +775,12 @@ class AuditPlugin(Plugin):
     def on_schema_generated(self, spec):
         spec["info"]["x-audited"] = True
         return spec
+
+    def on_startup(self):
+        print("App starting up")
+
+    def on_exception(self, request, exc):
+        log_to_sentry(exc)
 
 app.add_plugin(AuditPlugin())
 ```
@@ -661,7 +806,12 @@ hawkapi changelog app:app --base openapi-v1.json
 # Scaffold a new project
 hawkapi new myproject
 hawkapi new myproject --docker
+
+# Initialize config files in current directory
+hawkapi init
 ```
+
+`hawkapi init` creates `.env` and `.env.example` files with commented-out HawkAPI configuration templates. Existing files are skipped.
 
 ---
 
@@ -702,6 +852,32 @@ def test_with_mock_db():
         response = client.get("/users/1")
         assert response.status_code == 200
 ```
+
+### Cookie Jar
+
+`TestClient` maintains a persistent cookie jar across requests. Set-Cookie headers from responses are automatically stored and sent on subsequent requests:
+
+```python
+client = TestClient(app)
+client.cookies["session"] = "abc123"  # Pre-set cookies
+response = client.get("/dashboard")   # Cookie sent automatically
+# Response Set-Cookie headers update the jar for future requests
+```
+
+### Assertion Helpers
+
+`TestResponse` provides convenience properties for assertions:
+
+```python
+response = client.get("/users")
+assert response.is_success          # 2xx status
+assert not response.is_redirect     # 3xx status
+response.raise_for_status()         # Raises HTTPStatusError for 4xx/5xx
+assert response.text == "OK"        # Body as UTF-8 string
+assert "Content-Type" in response.headers  # Case-insensitive header lookup
+```
+
+Response headers use `CaseInsensitiveDict` — lookups like `response.headers["content-type"]` and `response.headers["Content-Type"]` both work.
 
 ---
 

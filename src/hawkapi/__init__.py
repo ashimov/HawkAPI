@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from hawkapi.middleware.debug import DebugMiddleware
     from hawkapi.middleware.prometheus import PrometheusMiddleware
     from hawkapi.middleware.request_limits import RequestLimitsMiddleware
+    from hawkapi.middleware.session import SessionMiddleware
     from hawkapi.middleware.structured_logging import StructuredLoggingMiddleware
     from hawkapi.middleware.trusted_proxy import TrustedProxyMiddleware
     from hawkapi.observability import ObservabilityConfig, ObservabilityMiddleware
@@ -61,7 +62,7 @@ if TYPE_CHECKING:
     from hawkapi.validation.constraints import Body, Cookie, Header, Path, Query
     from hawkapi.websocket import WebSocket, WebSocketDisconnect
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 
 # Lazy imports — loaded on first access for faster cold start
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
@@ -71,11 +72,14 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Settings": ("hawkapi.config", "Settings"),
     "env_field": ("hawkapi.config", "env_field"),
     # middleware
+    "CSRFMiddleware": ("hawkapi.middleware.csrf", "CSRFMiddleware"),
     "CircuitBreakerMiddleware": ("hawkapi.middleware.circuit_breaker", "CircuitBreakerMiddleware"),
     "DebugMiddleware": ("hawkapi.middleware.debug", "DebugMiddleware"),
     "Middleware": ("hawkapi.middleware", "Middleware"),
+    "MiddlewareEntry": ("hawkapi.middleware._pipeline", "MiddlewareEntry"),
     "PrometheusMiddleware": ("hawkapi.middleware.prometheus", "PrometheusMiddleware"),
     "RequestLimitsMiddleware": ("hawkapi.middleware.request_limits", "RequestLimitsMiddleware"),
+    "SessionMiddleware": ("hawkapi.middleware.session", "SessionMiddleware"),
     "StructuredLoggingMiddleware": (
         "hawkapi.middleware.structured_logging",
         "StructuredLoggingMiddleware",
@@ -206,6 +210,7 @@ __all__ = [
     "Router",
     "SecurityScheme",
     "ServerSentEvent",
+    "SessionMiddleware",
     "Settings",
     "Severity",
     "StaticFiles",

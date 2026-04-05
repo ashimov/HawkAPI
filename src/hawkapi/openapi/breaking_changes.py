@@ -105,10 +105,11 @@ def _compare_operation(
 
     for key in old_params:
         if key not in new_params:
+            was_required = old_params[key].get("required", False)
             changes.append(
                 Change(
                     type=ChangeType.PARAMETER_REMOVED,
-                    severity=Severity.BREAKING,
+                    severity=Severity.BREAKING if was_required else Severity.WARNING,
                     path=path,
                     method=method,
                     description=f"Parameter '{key[0]}' (in {key[1]}) was removed",
@@ -207,6 +208,8 @@ def _resolve_ref(spec: dict[str, Any], ref: str) -> dict[str, Any] | None:
     parts = ref[2:].split("/")
     current: dict[str, Any] = spec
     for part in parts:
+        # RFC 6901 JSON Pointer unescape (order matters: ~1 before ~0)
+        part = part.replace("~1", "/").replace("~0", "~")
         value: Any = current.get(part)
         if not isinstance(value, dict):
             return None

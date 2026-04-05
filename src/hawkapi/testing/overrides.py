@@ -28,13 +28,19 @@ def override(
         app_or_container.container if isinstance(app_or_container, HawkAPI) else app_or_container
     )
 
+    import sys
+
     contexts: list[Any] = []
+    exc_info: tuple[Any, ...] = (None, None, None)
     try:
         for service_type, factory in overrides.items():
             ctx = container.override(service_type, factory=factory)
             ctx.__enter__()
             contexts.append(ctx)
         yield
+    except BaseException:
+        exc_info = sys.exc_info()
+        raise
     finally:
         for ctx in reversed(contexts):
-            ctx.__exit__(None, None, None)
+            ctx.__exit__(*exc_info)

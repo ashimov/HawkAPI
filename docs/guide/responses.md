@@ -71,6 +71,26 @@ async def stream():
     return StreamingResponse(generate(), content_type="text/plain")
 ```
 
+## MessagePack Support
+
+HawkAPI supports MessagePack as an alternative response format via content negotiation. When a client sends an `Accept: application/msgpack` header, the response is automatically encoded as MessagePack instead of JSON.
+
+```python
+@app.get("/data")
+async def get_data():
+    return {"values": [1, 2, 3]}
+```
+
+```bash
+# JSON (default)
+curl http://localhost:8000/data
+
+# MessagePack
+curl -H "Accept: application/msgpack" http://localhost:8000/data
+```
+
+Both `application/msgpack` and `application/x-msgpack` are accepted. The negotiation respects quality values in the `Accept` header, and falls back to JSON when no supported format is matched. MessagePack encoding uses `msgspec.msgpack` and supports the same custom types (datetime, UUID, sets, bytes) as the JSON encoder.
+
 ## Server-Sent Events
 
 ```python

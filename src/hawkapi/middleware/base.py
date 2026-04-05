@@ -96,6 +96,9 @@ class Middleware:
             v = hdr_pair[1].decode("latin-1")
             if k == "content-type":
                 content_type = v
+            elif k == "content-length":
+                # Skip — Response._build_raw_headers will compute the correct value
+                continue
             else:
                 headers_dict[k] = v
 

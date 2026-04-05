@@ -118,7 +118,7 @@ async def resolve_from_plan(
     calls. All analysis was done once at route registration time.
     """
     kwargs: dict[str, Any] = {}
-    cleanup_stack: list[Any] = [] if plan.has_cleanup_deps else []
+    cleanup_stack: list[Any] = []
 
     for spec in plan.params:
         source = spec.source
@@ -203,6 +203,11 @@ async def resolve_from_plan(
                 kwargs[spec.name] = await scope.resolve(spec.base_type)
             elif container is not None:
                 kwargs[spec.name] = await container.resolve(spec.base_type)
+            else:
+                raise LookupError(
+                    f"Cannot resolve dependency {spec.name}: "
+                    f"{spec.base_type.__name__} — no DI scope or container available"
+                )
 
         elif source is ParamSource.REQUEST:
             kwargs[spec.name] = request

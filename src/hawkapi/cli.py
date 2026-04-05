@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import os
 import sys
 from typing import Any
 
@@ -137,6 +138,9 @@ def main(argv: list[str] | None = None) -> None:
     new_parser.add_argument("name", help="Project name")
     new_parser.add_argument("--docker", action="store_true", help="Include Dockerfile")
 
+    # `hawkapi init` subcommand
+    subparsers.add_parser("init", help="Initialize HawkAPI configuration in the current directory")
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -153,6 +157,8 @@ def main(argv: list[str] | None = None) -> None:
         _run_changelog(args)
     elif args.command == "new":
         _run_new(args)
+    elif args.command == "init":
+        _run_init(args)
 
 
 def _run_dev(args: argparse.Namespace) -> None:
@@ -243,6 +249,48 @@ def _run_new(args: argparse.Namespace) -> None:
     generate_project(project_dir, name=args.name, docker=args.docker)
     print(f"Created project '{args.name}' in ./{args.name}/")
     print(f"  cd {args.name} && uv sync && hawkapi dev main:app")
+
+
+_ENV_CONTENT = """\
+# HawkAPI Configuration
+# Uncomment and set values as needed.
+
+# DEBUG=true
+# PORT=8000
+# DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+# SECRET_KEY=change-me-to-a-random-secret
+"""
+
+_ENV_EXAMPLE_CONTENT = """\
+# HawkAPI Configuration
+# Copy this file to .env and fill in your values.
+
+DEBUG=true
+PORT=8000
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+SECRET_KEY=change-me-to-a-random-secret
+"""
+
+
+def _run_init(args: argparse.Namespace) -> None:
+    """Initialize HawkAPI configuration in the current directory."""
+    cwd = os.getcwd()
+    created: list[str] = []
+
+    for filename, content in [(".env", _ENV_CONTENT), (".env.example", _ENV_EXAMPLE_CONTENT)]:
+        filepath = os.path.join(cwd, filename)
+        if os.path.exists(filepath):
+            print(f"Already exists: {filename}")
+        else:
+            with open(filepath, "w") as fh:
+                fh.write(content)
+            created.append(filename)
+            print(f"Created: {filename}")
+
+    if created:
+        print(f"\nInitialized HawkAPI config ({', '.join(created)})")
+    else:
+        print("\nNothing to create — all config files already exist.")
 
 
 if __name__ == "__main__":

@@ -61,6 +61,18 @@ class ObservabilityMiddleware(Middleware):
 
         scope["request_id"] = request_id
 
+        # Extract W3C trace context from incoming headers
+        trace_ctx: dict[str, Any] = {}
+        if self.config.enable_tracing:
+            try:
+                from hawkapi.observability.tracing import extract_context
+
+                trace_ctx = extract_context(raw_headers)
+                scope["trace_id"] = trace_ctx.get("trace_id", "")
+                scope["span_id"] = trace_ctx.get("span_id", "")
+            except Exception:
+                logger.debug("Trace context extraction error", exc_info=True)
+
         start = time.monotonic()
         status_code = 500
 
@@ -70,6 +82,22 @@ class ObservabilityMiddleware(Middleware):
                 status_code = message["status"]
                 headers = list(message.get("headers", []))
                 headers.append((self._request_id_header, request_id.encode("latin-1")))
+
+                # Inject W3C trace context into response headers
+                if self.config.enable_tracing and trace_ctx:
+                    try:
+                        from hawkapi.observability.tracing import inject_context
+
+                        headers = inject_context(
+                            headers,
+                            trace_id=trace_ctx.get("trace_id", ""),
+                            span_id=trace_ctx.get("span_id", ""),
+                            trace_flags=trace_ctx.get("trace_flags", "01"),
+                            tracestate=trace_ctx.get("tracestate", ""),
+                        )
+                    except Exception:
+                        logger.debug("Trace context injection error", exc_info=True)
+
                 message = {**message, "headers": headers}
             await send(message)
 
@@ -115,6 +143,7 @@ class ObservabilityMiddleware(Middleware):
                         duration * 1000,
                         extra={
                             "request_id": request_id,
+                            "trace_id": trace_ctx.get("trace_id", ""),
                             "method": method,
                             "path": path,
                             "status_code": status_code,

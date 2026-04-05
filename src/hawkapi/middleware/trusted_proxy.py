@@ -67,14 +67,27 @@ class TrustedProxyMiddleware(Middleware):
 
         new_scope: dict[str, Any] = dict(scope)
 
-        # Rewrite client IP from X-Forwarded-For (take leftmost/first IP)
+        # Rewrite client IP from X-Forwarded-For (take rightmost non-trusted IP)
         if forwarded_for:
-            real_ip = forwarded_for.split(",")[0].strip()
-            try:
-                ipaddress.ip_address(real_ip)
-            except ValueError:
-                pass
-            else:
+            ips = [ip.strip() for ip in forwarded_for.split(",")]
+            real_ip: str | None = None
+            for ip in reversed(ips):
+                try:
+                    ipaddress.ip_address(ip)
+                except ValueError:
+                    continue
+                if not self._is_trusted(ip):
+                    real_ip = ip
+                    break
+            # Fall back to leftmost if all are trusted
+            if real_ip is None and ips:
+                candidate = ips[0]
+                try:
+                    ipaddress.ip_address(candidate)
+                    real_ip = candidate
+                except ValueError:
+                    pass
+            if real_ip is not None:
                 new_scope["client"] = (real_ip, 0)
 
         # Rewrite scheme from X-Forwarded-Proto

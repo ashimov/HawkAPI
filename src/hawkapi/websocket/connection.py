@@ -129,10 +129,14 @@ class WebSocket:
 
     async def send_text(self, data: str) -> None:
         """Send a text message."""
+        if self._state != WebSocketState.CONNECTED:
+            raise RuntimeError(f"Cannot send: WebSocket state is {self._state.value}")
         await self._send({"type": "websocket.send", "text": data})
 
     async def send_bytes(self, data: bytes) -> None:
         """Send a binary message."""
+        if self._state != WebSocketState.CONNECTED:
+            raise RuntimeError(f"Cannot send: WebSocket state is {self._state.value}")
         await self._send({"type": "websocket.send", "bytes": data})
 
     async def send_json(self, data: Any) -> None:

@@ -112,7 +112,15 @@ class CORSMiddleware(Middleware):
             return
 
         if not self._is_origin_allowed(origin):
-            await self.app(scope, receive, send)
+            # Still inject Vary: Origin so shared caches don't poison responses
+            async def vary_send(message: dict[str, Any]) -> None:
+                if message["type"] == "http.response.start":
+                    headers = list(message.get("headers", []))
+                    headers.append((b"vary", b"Origin"))
+                    message = {**message, "headers": headers}
+                await send(message)
+
+            await self.app(scope, receive, vary_send)
             return
 
         # Handle preflight
