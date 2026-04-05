@@ -34,7 +34,8 @@ class CaseInsensitiveDict(dict[str, str]):
         if not isinstance(key, str):
             return False
         lower = key.lower()
-        return any(k.lower() == lower for k in dict.keys(self))  # noqa: SIM118
+        stored_keys: list[str] = list(super().keys())
+        return any(k.lower() == lower for k in stored_keys)
 
     def get(self, key: str, default: str | None = None) -> str | None:  # type: ignore[override]
         try:
