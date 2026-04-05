@@ -19,7 +19,7 @@ class MiddlewareEntry:
     """A middleware class with optional configuration."""
 
     cls: type[Middleware]
-    kwargs: dict[str, Any] = dataclasses.field(default_factory=dict)
+    kwargs: dict[str, Any] = dataclasses.field(default_factory=lambda: {})
 
 
 def build_pipeline(

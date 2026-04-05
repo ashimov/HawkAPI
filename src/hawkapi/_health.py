@@ -55,7 +55,7 @@ def _setup_readyz_route(app: HawkAPI, readyz_url: str) -> None:
     async def readyz(request: Request) -> Response:
         checks: dict[str, dict[str, Any]] = {}
         all_ok = True
-        for name, check_fn in app._readiness_checks.items():
+        for name, check_fn in app._readiness_checks.items():  # pyright: ignore[reportPrivateUsage]
             ok, detail = await check_fn()
             checks[name] = {"ok": ok, "detail": detail}
             if not ok:

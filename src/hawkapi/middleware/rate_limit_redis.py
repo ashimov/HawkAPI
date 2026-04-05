@@ -101,7 +101,7 @@ class RedisRateLimitMiddleware(Middleware):
                 await client.ping()  # pyright: ignore[reportUnknownMemberType,reportGeneralTypeIssues]
                 self._lua_sha = await client.script_load(_BUCKET_SCRIPT)  # pyright: ignore[reportUnknownMemberType,reportGeneralTypeIssues]
                 self._redis_client = client  # pyright: ignore[reportUnknownVariableType]
-                return client  # pyright: ignore[reportReturnType]
+                return client  # pyright: ignore[reportReturnType,reportUnknownVariableType]
             except Exception:
                 logger.warning(
                     "Redis unavailable at %s, falling back to in-memory rate limiting",

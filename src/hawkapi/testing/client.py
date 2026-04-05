@@ -17,7 +17,7 @@ from hawkapi._types import ASGIApp
 _UNSET = object()
 
 
-class CaseInsensitiveDict(dict):
+class CaseInsensitiveDict(dict[str, str]):
     """Dictionary with case-insensitive key access.
 
     Preserves the original case of keys when iterating, but lookups
@@ -27,14 +27,14 @@ class CaseInsensitiveDict(dict):
     def __getitem__(self, key: str) -> str:
         for k, v in super().items():
             if k.lower() == key.lower():
-                return v
+                return v  # pyright: ignore[reportReturnType]
         raise KeyError(key)
 
     def __contains__(self, key: object) -> bool:
         if not isinstance(key, str):
             return False
         lower = key.lower()
-        return any(k.lower() == lower for k in dict.keys(self))
+        return any(k.lower() == lower for k in dict.keys(self))  # noqa: SIM118
 
     def get(self, key: str, default: str | None = None) -> str | None:  # type: ignore[override]
         try:
@@ -77,7 +77,7 @@ class TestResponse:
         result: dict[str, str] = {}
         for k, v in self._headers_raw:
             if k.decode("latin-1").lower() == "set-cookie":
-                cookie: SimpleCookie[str] = SimpleCookie()
+                cookie: SimpleCookie[str] = SimpleCookie()  # pyright: ignore[reportInvalidTypeArguments]
                 cookie.load(v.decode("latin-1"))
                 for morsel_key, morsel in cookie.items():
                     result[morsel_key] = morsel.value
@@ -338,7 +338,7 @@ class TestClient:
         # Update cookie jar from Set-Cookie headers
         for k, v in response_headers:
             if k.decode("latin-1").lower() == "set-cookie":
-                cookie: SimpleCookie[str] = SimpleCookie()
+                cookie: SimpleCookie[str] = SimpleCookie()  # pyright: ignore[reportInvalidTypeArguments]
                 cookie.load(v.decode("latin-1"))
                 for morsel_key, morsel in cookie.items():
                     self.cookies[morsel_key] = morsel.value

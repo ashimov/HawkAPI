@@ -126,7 +126,7 @@ def _unwrap_optional(tp: Any) -> Any:
 def _coerce(value: Any, target_type: type) -> Any:
     """Coerce a value to the target type."""
     target_type = _unwrap_optional(target_type)
-    if not isinstance(target_type, type):
+    if not isinstance(target_type, type):  # pyright: ignore[reportUnnecessaryIsInstance]
         return value  # Unknown generic — return as-is
     if isinstance(value, target_type):
         return value
