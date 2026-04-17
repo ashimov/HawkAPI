@@ -1,0 +1,13 @@
+{
+  "framework": "starlette",
+  "scenario": "path_param",
+  "requests_per_sec": 84670.31,
+  "latency_p50_ms": 0.739,
+  "latency_p95_ms": 0.775,
+  "latency_p99_ms": 1.68,
+  "latency_avg_ms": 0.77774,
+  "transfer_per_sec": "10.74MB",
+  "errors": 0,
+  "duration_sec": 10.0,
+  "timestamp": "2026-04-17T18:57:53+00:00"
+}

@@ -1,0 +1,13 @@
+{
+  "framework": "starlette",
+  "scenario": "routing_stress",
+  "requests_per_sec": 27396.84,
+  "latency_p50_ms": 2.33,
+  "latency_p95_ms": 2.38,
+  "latency_p99_ms": 2.51,
+  "latency_avg_ms": 2.33,
+  "transfer_per_sec": "3.47MB",
+  "errors": 0,
+  "duration_sec": 10.0,
+  "timestamp": "2026-04-17T18:58:24+00:00"
+}

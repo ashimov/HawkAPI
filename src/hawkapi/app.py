@@ -84,7 +84,9 @@ class HawkAPI(Router):
         self._plugins: list[Any] = []
         self._permission_policy: Any = None
         self._request_timeout = request_timeout
-        self._in_flight_lock = asyncio.Lock()
+        # Single-threaded asyncio: int += 1 is atomic under GIL.
+        # Free-threaded Python 3.13 (no-GIL) would need a lock here and in
+        # _core_handler. For now, simple counter for max throughput.
         self._in_flight = 0
 
         # Observability
@@ -571,13 +573,11 @@ class HawkAPI(Router):
 
     async def _core_handler(self, scope: Scope, receive: Receive, send: Send) -> None:
         """The innermost handler: routing + DI + handler execution."""
-        async with self._in_flight_lock:
-            self._in_flight += 1
+        self._in_flight += 1
         try:
             await self._core_handler_inner(scope, receive, send)
         finally:
-            async with self._in_flight_lock:
-                self._in_flight -= 1
+            self._in_flight -= 1
 
     async def _core_handler_inner(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Inner handler: routing + DI + handler execution."""

@@ -1,0 +1,13 @@
+{
+  "framework": "fastapi",
+  "scenario": "query_params",
+  "requests_per_sec": 25710.22,
+  "latency_p50_ms": 2.46,
+  "latency_p95_ms": 2.59,
+  "latency_p99_ms": 2.76,
+  "latency_avg_ms": 2.49,
+  "transfer_per_sec": "3.75MB",
+  "errors": 0,
+  "duration_sec": 10.0,
+  "timestamp": "2026-04-17T18:55:03+00:00"
+}

@@ -1,0 +1,13 @@
+{
+  "framework": "hawkapi",
+  "scenario": "body_validation",
+  "requests_per_sec": 82201.85,
+  "latency_p50_ms": 0.758,
+  "latency_p95_ms": 0.841,
+  "latency_p99_ms": 1.09,
+  "latency_avg_ms": 0.76942,
+  "transfer_per_sec": "12.54MB",
+  "errors": 0,
+  "duration_sec": 10.0,
+  "timestamp": "2026-04-17T18:53:48+00:00"
+}

@@ -1,0 +1,13 @@
+{
+  "framework": "litestar",
+  "scenario": "routing_stress",
+  "requests_per_sec": 56085.46,
+  "latency_p50_ms": 1.14,
+  "latency_p95_ms": 1.17,
+  "latency_p99_ms": 1.24,
+  "latency_avg_ms": 1.14,
+  "transfer_per_sec": "7.11MB",
+  "errors": 0,
+  "duration_sec": 10.0,
+  "timestamp": "2026-04-17T18:56:18+00:00"
+}

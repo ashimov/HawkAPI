@@ -1,0 +1,13 @@
+{
+  "framework": "sanic",
+  "scenario": "body_validation",
+  "requests_per_sec": 34978.28,
+  "latency_p50_ms": 1.75,
+  "latency_p95_ms": 2.01,
+  "latency_p99_ms": 5.25,
+  "latency_avg_ms": 1.85,
+  "transfer_per_sec": "5.17MB",
+  "errors": 0,
+  "duration_sec": 10.0,
+  "timestamp": "2026-04-17T18:59:07+00:00"
+}

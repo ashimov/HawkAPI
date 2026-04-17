@@ -1,0 +1,13 @@
+{
+  "framework": "hawkapi",
+  "scenario": "routing_stress",
+  "requests_per_sec": 134355.61,
+  "latency_p50_ms": 0.409,
+  "latency_p95_ms": 0.684,
+  "latency_p99_ms": 2.06,
+  "latency_avg_ms": 0.49977999999999995,
+  "transfer_per_sec": "17.04MB",
+  "errors": 0,
+  "duration_sec": 10.0,
+  "timestamp": "2026-04-17T18:54:09+00:00"
+}

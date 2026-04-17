@@ -8,7 +8,14 @@ from hawkapi._types import Receive, Scope, Send
 class Response:
     """Base HTTP response that sends via the ASGI protocol."""
 
-    __slots__ = ("status_code", "body", "_headers", "content_type")
+    __slots__ = (
+        "status_code",
+        "body",
+        "_headers",
+        "content_type",
+        "_content_type_bytes",
+        "_body_len_bytes",
+    )
 
     def __init__(
         self,
@@ -21,12 +28,18 @@ class Response:
         """Create a response with content, status code, and optional headers."""
         self.status_code = status_code
         self.content_type = content_type
+        # Pre-encode content_type once instead of on every _build_raw_headers call
+        self._content_type_bytes = content_type.encode("latin-1")
         self._headers = headers or {}
 
         if isinstance(content, str):
             self.body = content.encode("utf-8")
         else:
             self.body = content
+
+        # Pre-compute content-length bytes. If body is mutated post-init,
+        # update this value too.
+        self._body_len_bytes = str(len(self.body)).encode("latin-1")
 
     @property
     def headers(self) -> dict[str, str]:
@@ -39,6 +52,13 @@ class Response:
         return value.replace("\r", "").replace("\n", "")
 
     def _build_raw_headers(self) -> list[tuple[bytes, bytes]]:
+        # Fast path: no user-supplied headers (most common case for plain responses)
+        if not self._headers:
+            return [
+                (b"content-type", self._content_type_bytes),
+                (b"content-length", self._body_len_bytes),
+            ]
+
         raw: list[tuple[bytes, bytes]] = []
         has_content_type = False
         for key, value in self._headers.items():
@@ -49,11 +69,11 @@ class Response:
             raw.append((lower.encode("latin-1"), safe_value.encode("latin-1")))
 
         if not has_content_type:
-            raw.append((b"content-type", self.content_type.encode("latin-1")))
+            raw.append((b"content-type", self._content_type_bytes))
 
         # Only auto-compute content-length if not explicitly set in headers
         if "content-length" not in self._headers:
-            raw.append((b"content-length", str(len(self.body)).encode("latin-1")))
+            raw.append((b"content-length", self._body_len_bytes))
         return raw
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:

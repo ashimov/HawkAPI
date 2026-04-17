@@ -51,6 +51,15 @@ docs = [
     "mkdocs-material>=9.0",
     "mkdocstrings[python]>=0.26",
 ]
+bench = [
+    "granian>=1.0",
+    "fastapi>=0.115",
+    "litestar>=2.0",
+    "blacksheep>=2.0",
+    "starlette>=0.40",
+    "sanic>=24.6",
+    "pydantic>=2.0",
+]
 
 [project.scripts]
 hawkapi = "hawkapi.cli:main"

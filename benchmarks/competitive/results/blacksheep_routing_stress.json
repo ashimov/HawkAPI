@@ -1,0 +1,13 @@
+{
+  "framework": "blacksheep",
+  "scenario": "routing_stress",
+  "requests_per_sec": 121213.5,
+  "latency_p50_ms": 0.516,
+  "latency_p95_ms": 0.55,
+  "latency_p99_ms": 0.96,
+  "latency_avg_ms": 0.52797,
+  "transfer_per_sec": "15.37MB",
+  "errors": 0,
+  "duration_sec": 10.0,
+  "timestamp": "2026-04-17T18:57:21+00:00"
+}

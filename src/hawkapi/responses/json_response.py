@@ -26,6 +26,13 @@ class JSONResponse:
         self.body = _encode(content) if content is not None else b"null"
 
     def _build_raw_headers(self) -> list[tuple[bytes, bytes]]:
+        # Fast path: no user-supplied headers (the common case for API JSON)
+        if not self._headers:
+            return [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(self.body)).encode("latin-1")),
+            ]
+
         raw: list[tuple[bytes, bytes]] = [
             (b"content-length", str(len(self.body)).encode("latin-1")),
         ]

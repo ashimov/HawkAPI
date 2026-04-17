@@ -1,0 +1,13 @@
+{
+  "framework": "litestar",
+  "scenario": "body_validation",
+  "requests_per_sec": 31289.78,
+  "latency_p50_ms": 2.01,
+  "latency_p95_ms": 2.16,
+  "latency_p99_ms": 2.64,
+  "latency_avg_ms": 2.07,
+  "transfer_per_sec": "4.77MB",
+  "errors": 0,
+  "duration_sec": 10.0,
+  "timestamp": "2026-04-17T18:55:56+00:00"
+}

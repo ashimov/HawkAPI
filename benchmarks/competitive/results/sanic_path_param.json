@@ -1,0 +1,13 @@
+{
+  "framework": "sanic",
+  "scenario": "path_param",
+  "requests_per_sec": 51257.83,
+  "latency_p50_ms": 1.29,
+  "latency_p95_ms": 1.35,
+  "latency_p99_ms": 1.54,
+  "latency_avg_ms": 1.26,
+  "transfer_per_sec": "6.50MB",
+  "errors": 0,
+  "duration_sec": 10.0,
+  "timestamp": "2026-04-17T18:58:56+00:00"
+}

@@ -1,0 +1,13 @@
+{
+  "framework": "blacksheep",
+  "scenario": "query_params",
+  "requests_per_sec": 74526.06,
+  "latency_p50_ms": 0.85,
+  "latency_p95_ms": 0.88,
+  "latency_p99_ms": 0.96,
+  "latency_avg_ms": 0.86,
+  "transfer_per_sec": "10.87MB",
+  "errors": 0,
+  "duration_sec": 10.0,
+  "timestamp": "2026-04-17T18:57:10+00:00"
+}
