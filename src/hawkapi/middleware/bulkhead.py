@@ -123,7 +123,7 @@ def _push_token(name: str, token: object | None) -> None:
     if stacks is None:
         # First use in this task — create a fresh dict for isolated ownership.
         stacks = {}
-        _TOKEN_STACKS.set(stacks)
+        _TOKEN_STACKS.set(stacks)  # pyright: ignore[reportUnknownArgumentType]
     elif not stacks.get(name):
         # The dict may be inherited from a parent task (asyncio.create_task
         # copies the Context but not the mutable dict inside). If we do not
@@ -133,7 +133,7 @@ def _push_token(name: str, token: object | None) -> None:
         # in our own task and should keep mutating it.)
         stacks = dict(stacks)
         stacks[name] = []
-        _TOKEN_STACKS.set(stacks)
+        _TOKEN_STACKS.set(stacks)  # pyright: ignore[reportUnknownArgumentType]
     stacks.setdefault(name, []).append(token)
 
 
@@ -163,24 +163,28 @@ def _ensure_metrics() -> None:
     global _metric_rejections, _metric_acquire_latency
     if _metrics_registered:
         return
-    from prometheus_client import Counter, Gauge, Histogram  # noqa: PLC0415
+    from prometheus_client import (  # noqa: PLC0415  # pyright: ignore[reportMissingImports,reportUnknownVariableType]
+        Counter,  # pyright: ignore[reportUnknownVariableType]
+        Gauge,  # pyright: ignore[reportUnknownVariableType]
+        Histogram,  # pyright: ignore[reportUnknownVariableType]
+    )
 
-    _metric_in_flight = Gauge(
+    _metric_in_flight = Gauge(  # pyright: ignore[reportUnknownVariableType]
         "hawkapi_bulkhead_in_flight",
         "Currently-occupied bulkhead slots.",
         ["name"],
     )
-    _metric_capacity = Gauge(
+    _metric_capacity = Gauge(  # pyright: ignore[reportUnknownVariableType]
         "hawkapi_bulkhead_capacity",
         "Configured bulkhead capacity.",
         ["name"],
     )
-    _metric_rejections = Counter(
+    _metric_rejections = Counter(  # pyright: ignore[reportUnknownVariableType]
         "hawkapi_bulkhead_rejections_total",
         "Bulkhead acquire rejections.",
         ["name", "reason"],
     )
-    _metric_acquire_latency = Histogram(
+    _metric_acquire_latency = Histogram(  # pyright: ignore[reportUnknownVariableType]
         "hawkapi_bulkhead_acquire_latency_seconds",
         "Time spent waiting for a bulkhead slot.",
         ["name"],

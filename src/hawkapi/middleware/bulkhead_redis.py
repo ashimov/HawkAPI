@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from hawkapi.middleware.bulkhead import BulkheadFullError
 
 if TYPE_CHECKING:
-    import redis.asyncio as aioredis
+    from redis.asyncio import Redis
 
 
 class RedisBulkheadBackend:
@@ -29,7 +29,7 @@ class RedisBulkheadBackend:
 
     def __init__(
         self,
-        client: aioredis.Redis,
+        client: Redis,
         *,
         key_prefix: str = "hawkapi:bulkhead",
         lease_ttl: float = 30.0,
@@ -52,18 +52,18 @@ class RedisBulkheadBackend:
         lease_id = uuid.uuid4().hex
         key = self._key(name)
         now_s = time.time()
-        pipe = self._client.pipeline()
-        pipe.hset(key, lease_id, f"{now_s:.6f}")
-        pipe.hlen(key)
+        pipe = self._client.pipeline()  # pyright: ignore[reportUnknownMemberType]
+        pipe.hset(key, lease_id, f"{now_s:.6f}")  # pyright: ignore[reportUnknownMemberType]
+        pipe.hlen(key)  # pyright: ignore[reportUnknownMemberType]
         # Keep the hash-wide TTL well above lease_ttl so an idle key eventually
         # expires but the reaper is the primary cleanup mechanism.
-        pipe.pexpire(key, int(self._lease_ttl * 1000 * 10))
-        results = await pipe.execute()
+        pipe.pexpire(key, int(self._lease_ttl * 1000 * 10))  # pyright: ignore[reportUnknownMemberType]
+        results = await pipe.execute()  # pyright: ignore[reportGeneralTypeIssues]
         occupancy = int(results[1])
         if occupancy <= limit:
             return lease_id
         # Too many holders — roll back our field.
-        await self._client.hdel(key, lease_id)
+        await self._client.hdel(key, lease_id)  # pyright: ignore[reportGeneralTypeIssues]
         return None
 
     async def acquire(self, name: str, limit: int, max_wait: float) -> object | None:
@@ -86,25 +86,25 @@ class RedisBulkheadBackend:
             raise TypeError(
                 f"RedisBulkheadBackend.release expected lease_id str, got {type(token).__name__}"
             )
-        await self._client.hdel(self._key(name), token)
+        await self._client.hdel(self._key(name), token)  # pyright: ignore[reportGeneralTypeIssues]
 
     async def reap_expired_leases(self, name: str) -> int:
         """Delete lease fields older than ``lease_ttl``. Return count reaped."""
         key = self._key(name)
         cutoff = time.time() - self._lease_ttl
-        fields: dict[bytes, bytes] = await self._client.hgetall(key)
+        fields: dict[bytes, bytes] = await self._client.hgetall(key)  # pyright: ignore[reportUnknownMemberType,reportGeneralTypeIssues,reportUnknownVariableType]
         stale: list[bytes] = []
-        for lease_id, ts_bytes in fields.items():
+        for lease_id, ts_bytes in fields.items():  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
             try:
-                ts = float(ts_bytes)
+                ts = float(ts_bytes)  # pyright: ignore[reportUnknownArgumentType]
             except (TypeError, ValueError):
-                stale.append(lease_id)
+                stale.append(lease_id)  # pyright: ignore[reportUnknownArgumentType]
                 continue
             if ts < cutoff:
-                stale.append(lease_id)
+                stale.append(lease_id)  # pyright: ignore[reportUnknownArgumentType]
         if not stale:
             return 0
-        await self._client.hdel(key, *stale)
+        await self._client.hdel(key, *stale)  # pyright: ignore[reportGeneralTypeIssues,reportArgumentType]
         return len(stale)
 
 
