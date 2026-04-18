@@ -1,6 +1,12 @@
 from hawkapi.middleware._pipeline import MiddlewareEntry
 from hawkapi.middleware.adaptive_concurrency import AdaptiveConcurrencyMiddleware
 from hawkapi.middleware.base import Middleware
+from hawkapi.middleware.bulkhead import (
+    Bulkhead,
+    BulkheadBackend,
+    BulkheadFullError,
+    bulkhead,
+)
 from hawkapi.middleware.circuit_breaker import CircuitBreakerMiddleware
 from hawkapi.middleware.cors import CORSMiddleware
 from hawkapi.middleware.debug import DebugMiddleware
@@ -16,6 +22,9 @@ from hawkapi.middleware.trusted_host import TrustedHostMiddleware
 
 __all__ = [
     "AdaptiveConcurrencyMiddleware",
+    "Bulkhead",
+    "BulkheadBackend",
+    "BulkheadFullError",
     "CircuitBreakerMiddleware",
     "CORSMiddleware",
     "DebugMiddleware",
@@ -30,4 +39,5 @@ __all__ = [
     "SecurityHeadersMiddleware",
     "TimingMiddleware",
     "TrustedHostMiddleware",
+    "bulkhead",
 ]
