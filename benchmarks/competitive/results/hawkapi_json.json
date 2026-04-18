@@ -1,13 +1,13 @@
 {
   "framework": "hawkapi",
   "scenario": "json",
-  "requests_per_sec": 126820.1,
-  "latency_p50_ms": 0.416,
-  "latency_p95_ms": 0.806,
-  "latency_p99_ms": 2.71,
-  "latency_avg_ms": 0.55568,
-  "transfer_per_sec": "18.38MB",
+  "requests_per_sec": 154425.41,
+  "latency_p50_ms": 0.396,
+  "latency_p95_ms": 0.444,
+  "latency_p99_ms": 0.92,
+  "latency_avg_ms": 0.40793,
+  "transfer_per_sec": "22.39MB",
   "errors": 0,
-  "duration_sec": 10.0,
-  "timestamp": "2026-04-17T18:53:17+00:00"
+  "duration_sec": 8.0,
+  "timestamp": "2026-04-18T08:34:59+00:00"
 }

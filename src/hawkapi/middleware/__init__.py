@@ -1,4 +1,5 @@
 from hawkapi.middleware._pipeline import MiddlewareEntry
+from hawkapi.middleware.adaptive_concurrency import AdaptiveConcurrencyMiddleware
 from hawkapi.middleware.base import Middleware
 from hawkapi.middleware.circuit_breaker import CircuitBreakerMiddleware
 from hawkapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,7 @@ from hawkapi.middleware.timing import TimingMiddleware
 from hawkapi.middleware.trusted_host import TrustedHostMiddleware
 
 __all__ = [
+    "AdaptiveConcurrencyMiddleware",
     "CircuitBreakerMiddleware",
     "CORSMiddleware",
     "DebugMiddleware",

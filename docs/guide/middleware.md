@@ -62,6 +62,7 @@ app.add_middleware(TimingMiddleware)
 | `ErrorHandlerMiddleware` | Global exception handler | — |
 | `DebugMiddleware` | Debug info in error responses | — |
 | `CircuitBreakerMiddleware` | Circuit breaker pattern | — |
+| `AdaptiveConcurrencyMiddleware` | Latency-driven adaptive concurrency limiter (Netflix gradient2) | — |
 | `TrustedProxyMiddleware` | X-Forwarded-* handling | — |
 | `RequestLimitsMiddleware` | Query/header size limits | — |
 | `StructuredLoggingMiddleware` | JSON-structured request logs | `logging` |
@@ -91,6 +92,39 @@ app.add_middleware(
     recovery_timeout=30.0,
 )
 ```
+
+## Adaptive Concurrency
+
+Auto-tunes the per-path concurrent request limit using a simplified Netflix
+gradient2 algorithm. The limit grows when measured RTTs hug the floor and
+shrinks when latency rises — preventing overload without manual tuning.
+
+```python
+from hawkapi.middleware import AdaptiveConcurrencyMiddleware
+
+app.add_middleware(
+    AdaptiveConcurrencyMiddleware,
+    initial_limit=50,
+    min_limit=10,
+    max_limit=1000,
+    target_p99_ms=100.0,
+    smoothing=0.9,
+)
+```
+
+When the in-flight count reaches the current limit, additional requests are
+rejected with `503 Service Unavailable` and a `Retry-After` header. Each path
+maintains its own limit, so a slow endpoint cannot starve a fast one.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `initial_limit` | `50` | Starting concurrent request limit |
+| `min_limit` | `10` | Floor for the dynamic limit |
+| `max_limit` | `1000` | Ceiling for the dynamic limit |
+| `target_p99_ms` | `100.0` | Soft latency anchor (used before any RTT samples) |
+| `smoothing` | `0.9` | EWMA smoothing factor in `[0, 1)` — higher = more inertia |
+| `min_rtt_reset_interval` | `30.0` | Seconds between forced `min_rtt` resets |
+| `queue_size_buffer` | `sqrt(initial_limit)` | Additive constant in the new-limit formula |
 
 ## Structured Logging
 

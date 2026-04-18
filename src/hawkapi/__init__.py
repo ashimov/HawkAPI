@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from hawkapi.background import BackgroundTasks
     from hawkapi.config import Settings, env_field
     from hawkapi.middleware import Middleware
+    from hawkapi.middleware.adaptive_concurrency import AdaptiveConcurrencyMiddleware
     from hawkapi.middleware.circuit_breaker import CircuitBreakerMiddleware
     from hawkapi.middleware.debug import DebugMiddleware
     from hawkapi.middleware.prometheus import PrometheusMiddleware
@@ -72,8 +73,16 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "Settings": ("hawkapi.config", "Settings"),
     "env_field": ("hawkapi.config", "env_field"),
     # middleware
+    "AdaptiveConcurrencyMiddleware": (
+        "hawkapi.middleware.adaptive_concurrency",
+        "AdaptiveConcurrencyMiddleware",
+    ),
     "CSRFMiddleware": ("hawkapi.middleware.csrf", "CSRFMiddleware"),
     "CircuitBreakerMiddleware": ("hawkapi.middleware.circuit_breaker", "CircuitBreakerMiddleware"),
+    "RedisCircuitBreakerMiddleware": (
+        "hawkapi.middleware.circuit_breaker_redis",
+        "RedisCircuitBreakerMiddleware",
+    ),
     "DebugMiddleware": ("hawkapi.middleware.debug", "DebugMiddleware"),
     "Middleware": ("hawkapi.middleware", "Middleware"),
     "MiddlewareEntry": ("hawkapi.middleware._pipeline", "MiddlewareEntry"),
@@ -167,6 +176,7 @@ __all__ = [
     "APIKeyCookie",
     "APIKeyHeader",
     "APIKeyQuery",
+    "AdaptiveConcurrencyMiddleware",
     "BackgroundTasks",
     "Body",
     "Change",
