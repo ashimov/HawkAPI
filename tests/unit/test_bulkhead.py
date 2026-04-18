@@ -177,3 +177,70 @@ async def test_bulkhead_different_names_dont_share_capacity() -> None:
     async with bh1:
         async with bh2:
             pass
+
+
+from hawkapi.exceptions import HTTPException
+from hawkapi.middleware.bulkhead import bulkhead
+
+
+async def test_bulkhead_decorator_passthrough_when_under_limit() -> None:
+    @bulkhead("pay", limit=2)
+    async def handler() -> str:
+        return "ok"
+
+    assert await handler() == "ok"
+
+
+async def test_bulkhead_decorator_raises_http_exception_when_full() -> None:
+    hold_event = asyncio.Event()
+    started = asyncio.Event()
+
+    @bulkhead("pay2", limit=1, max_wait=0.0)
+    async def handler() -> str:
+        started.set()
+        await hold_event.wait()
+        return "ok"
+
+    holder = asyncio.create_task(handler())
+    try:
+        await started.wait()
+        with pytest.raises(HTTPException) as excinfo:
+            await handler()
+        assert excinfo.value.status_code == 503
+        assert excinfo.value.headers is not None
+        assert excinfo.value.headers.get("Retry-After") == "1"
+    finally:
+        hold_event.set()
+        await holder
+
+
+async def test_bulkhead_decorator_configurable_status_and_retry_after() -> None:
+    started = asyncio.Event()
+    hold_event = asyncio.Event()
+
+    @bulkhead("pay3", limit=1, max_wait=0.0, status_code=429, retry_after=2.5)
+    async def handler() -> str:
+        started.set()
+        await hold_event.wait()
+        return "ok"
+
+    holder = asyncio.create_task(handler())
+    try:
+        await started.wait()
+        with pytest.raises(HTTPException) as excinfo:
+            await handler()
+        assert excinfo.value.status_code == 429
+        # retry_after=2.5 rounds up to "3" per RFC 9110 integer seconds.
+        assert excinfo.value.headers is not None
+        assert excinfo.value.headers.get("Retry-After") == "3"
+    finally:
+        hold_event.set()
+        await holder
+
+
+async def test_bulkhead_decorator_preserves_handler_args() -> None:
+    @bulkhead("pay4", limit=2)
+    async def handler(x: int, *, y: int = 0) -> int:
+        return x + y
+
+    assert await handler(1, y=2) == 3
