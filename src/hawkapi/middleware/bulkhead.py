@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from contextvars import ContextVar
 from typing import Protocol
 
 
@@ -101,4 +102,88 @@ class LocalBulkheadBackend:
         sem.release()
 
 
-__all__ = ["BulkheadBackend", "BulkheadFullError", "LocalBulkheadBackend"]
+# Module-level default backend shared across all Bulkhead instances that do
+# not explicitly pass their own.
+_DEFAULT_LOCAL_BACKEND: LocalBulkheadBackend = LocalBulkheadBackend()
+
+# Per-task stack of acquired tokens, keyed by bulkhead name. A list — not a
+# single token — so nested same-name acquires in one task work correctly.
+_TOKEN_STACKS: ContextVar[dict[str, list[object | None]] | None] = ContextVar(
+    "hawkapi_bulkhead_tokens", default=None
+)
+
+
+def _push_token(name: str, token: object | None) -> None:
+    stacks = _TOKEN_STACKS.get()
+    if stacks is None:
+        stacks = {}
+        _TOKEN_STACKS.set(stacks)
+    stacks.setdefault(name, []).append(token)
+
+
+def _pop_token(name: str) -> object | None:
+    stacks = _TOKEN_STACKS.get()
+    if stacks is None or not stacks.get(name):
+        raise RuntimeError(
+            f"unpaired bulkhead release for {name!r} — this usually means "
+            "release was called outside the task that acquired the slot"
+        )
+    return stacks[name].pop()
+
+
+class Bulkhead:
+    """Named, size-limited async concurrency isolator.
+
+    Usage::
+
+        bh = Bulkhead("stripe", limit=10, max_wait=0.5)
+        async with bh:
+            await stripe_client.charge(...)
+
+    The same instance is safe to share across tasks; per-acquire state lives
+    in a task-local ``ContextVar``.
+    """
+
+    __slots__ = ("_name", "_limit", "_max_wait", "_backend")
+
+    def __init__(
+        self,
+        name: str,
+        limit: int,
+        max_wait: float = 0.0,
+        *,
+        backend: BulkheadBackend | None = None,
+    ) -> None:
+        if limit < 1:
+            raise ValueError(f"limit must be >= 1, got {limit}")
+        if max_wait < 0:
+            raise ValueError(f"max_wait must be >= 0, got {max_wait}")
+        self._name = name
+        self._limit = limit
+        self._max_wait = max_wait
+        self._backend: BulkheadBackend = backend or _DEFAULT_LOCAL_BACKEND
+
+    async def __aenter__(self) -> Bulkhead:
+        token = await self._backend.acquire(self._name, self._limit, self._max_wait)
+        _push_token(self._name, token)
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        token = _pop_token(self._name)
+        await self._backend.release(self._name, token)
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def limit(self) -> int:
+        return self._limit
+
+
+__all__ = [
+    "Bulkhead",
+    "BulkheadBackend",
+    "BulkheadFullError",
+    "LocalBulkheadBackend",
+]
