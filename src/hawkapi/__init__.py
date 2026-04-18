@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 # Eager imports — core types used in every application
+from hawkapi import status
 from hawkapi.app import HawkAPI
 from hawkapi.di import Container, Depends
 from hawkapi.exceptions import HTTPException
@@ -229,6 +230,7 @@ __all__ = [
     "TrustedProxyMiddleware",
     "TestClient",
     "TestResponse",
+    "status",
     "VersionRouter",
     "WebSocket",
     "WebSocketDisconnect",

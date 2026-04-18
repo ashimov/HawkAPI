@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LocalBulkheadBackend` (default, `asyncio.Semaphore` per name) and `RedisBulkheadBackend` (distributed, hash + lease-TTL) implementations
 - Opt-in Prometheus metrics for bulkheads (`hawkapi_bulkhead_in_flight`, `_capacity`, `_rejections_total`, `_acquire_latency_seconds`)
 - User guide: `docs/guide/bulkhead.md`
+- `hawkapi.status` module — HTTP and WebSocket status-code constants (FastAPI parity)
 
 ## [0.1.2] - 2026-04-05
 
