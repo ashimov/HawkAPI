@@ -17,6 +17,7 @@ the compiled ``.so`` is absent — there are no compile-only constructs.
 from __future__ import annotations
 
 import os
+import sys
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -41,13 +42,31 @@ HOT_MODULES: tuple[str, ...] = (
 
 
 def is_enabled() -> bool:
-    """Return True when mypyc compilation has been opted into."""
-    return os.environ.get("HAWKAPI_BUILD_MYPYC", "").strip().lower() in {
+    """Return True when mypyc compilation has been opted into.
+
+    mypyc-compiled extensions require the GIL. On a PEP 703 free-threaded
+    CPython build (``python3.13t``), ``sys._is_gil_enabled()`` returns
+    ``False`` — we skip compilation in that case even when the env var is set,
+    and warn on stderr so the build log explains the decision.
+    """
+    if os.environ.get("HAWKAPI_BUILD_MYPYC", "").strip().lower() not in {
         "1",
         "true",
         "yes",
         "on",
-    }
+    }:
+        return False
+
+    is_gil_enabled = getattr(sys, "_is_gil_enabled", None)
+    if is_gil_enabled is not None and not is_gil_enabled():
+        print(
+            "HAWKAPI_BUILD_MYPYC is set but the interpreter is free-threaded; "
+            "skipping mypyc compilation.",
+            file=sys.stderr,
+        )
+        return False
+
+    return True
 
 
 def build_extensions() -> Sequence[Any]:
