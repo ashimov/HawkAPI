@@ -116,7 +116,18 @@ _TOKEN_STACKS: ContextVar[dict[str, list[object | None]] | None] = ContextVar(
 def _push_token(name: str, token: object | None) -> None:
     stacks = _TOKEN_STACKS.get()
     if stacks is None:
+        # First use in this task — create a fresh dict for isolated ownership.
         stacks = {}
+        _TOKEN_STACKS.set(stacks)
+    elif not stacks.get(name):
+        # The dict may be inherited from a parent task (asyncio.create_task
+        # copies the Context but not the mutable dict inside). If we do not
+        # yet have a stack for this name, fork a per-task copy so our pushes
+        # don't clobber the parent's stacks.
+        # (If we already have a non-empty stack for this name, we're nested
+        # in our own task and should keep mutating it.)
+        stacks = dict(stacks)
+        stacks[name] = []
         _TOKEN_STACKS.set(stacks)
     stacks.setdefault(name, []).append(token)
 
@@ -128,7 +139,10 @@ def _pop_token(name: str) -> object | None:
             f"unpaired bulkhead release for {name!r} — this usually means "
             "release was called outside the task that acquired the slot"
         )
-    return stacks[name].pop()
+    token = stacks[name].pop()
+    if not stacks[name]:
+        del stacks[name]
+    return token
 
 
 class Bulkhead:
@@ -168,9 +182,16 @@ class Bulkhead:
         _push_token(self._name, token)
         return self
 
-    async def __aexit__(self, exc_type, exc, tb) -> None:
+    async def __aexit__(self, exc_type: object, exc: BaseException | None, tb: object) -> None:
         token = _pop_token(self._name)
-        await self._backend.release(self._name, token)
+        try:
+            await self._backend.release(self._name, token)
+        except Exception as release_exc:
+            # Body-raised exception takes priority; chain release failure
+            # as its __cause__ so both are visible in tracebacks.
+            if exc is not None:
+                raise release_exc from exc
+            raise
 
     @property
     def name(self) -> str:
