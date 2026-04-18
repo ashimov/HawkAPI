@@ -153,3 +153,26 @@ jobs:
           path: .benchmarks/
           if-no-files-found: ignore
           retention-days: 30
+
+  test-free-threaded:
+    name: Test (Python 3.13 free-threaded, experimental)
+    # Non-blocking: surfaces regressions without gating merges.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.13 free-threaded
+        # uv supports the free-threaded CPython build via the 't' suffix.
+        run: uv python install 3.13t
+
+      - name: Install dependencies
+        run: uv sync --python 3.13t --extra dev --extra pydantic
+
+      - name: Run unit tests
+        run: uv run --python 3.13t pytest tests/unit -x --tb=short -q
