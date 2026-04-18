@@ -141,6 +141,31 @@ def main(argv: list[str] | None = None) -> None:
     # `hawkapi init` subcommand
     subparsers.add_parser("init", help="Initialize HawkAPI configuration in the current directory")
 
+    # `hawkapi migrate` subcommand
+    migrate_parser = subparsers.add_parser(
+        "migrate",
+        help="Rewrite a FastAPI codebase to HawkAPI (in place by default)",
+    )
+    migrate_parser.add_argument(
+        "path",
+        help="File or directory to migrate. Directories are walked recursively for *.py.",
+    )
+    migrate_parser.add_argument(
+        "--output",
+        default=None,
+        help="Write migrated files to this directory instead of overwriting.",
+    )
+    migrate_parser.add_argument(
+        "--convert-models",
+        action="store_true",
+        help="Also rewrite Pydantic BaseModel classes to msgspec.Struct.",
+    )
+    migrate_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print unified diffs without writing any file.",
+    )
+
     args = parser.parse_args(argv)
 
     if args.command is None:
@@ -159,6 +184,8 @@ def main(argv: list[str] | None = None) -> None:
         _run_new(args)
     elif args.command == "init":
         _run_init(args)
+    elif args.command == "migrate":
+        _run_migrate(args)
 
 
 def _run_dev(args: argparse.Namespace) -> None:
@@ -291,6 +318,98 @@ def _run_init(args: argparse.Namespace) -> None:
         print(f"\nInitialized HawkAPI config ({', '.join(created)})")
     else:
         print("\nNothing to create — all config files already exist.")
+
+
+def _iter_python_files(root: str) -> list[str]:
+    """Return absolute paths to ``*.py`` files under *root* (or [root] if a file)."""
+    if os.path.isfile(root):
+        return [root] if root.endswith(".py") else []
+    found: list[str] = []
+    for dirpath, _dirnames, filenames in os.walk(root):
+        for fname in filenames:
+            if fname.endswith(".py"):
+                found.append(os.path.join(dirpath, fname))
+    found.sort()
+    return found
+
+
+def _unified_diff(old: str, new: str, label: str) -> str:
+    import difflib
+
+    return "".join(
+        difflib.unified_diff(
+            old.splitlines(keepends=True),
+            new.splitlines(keepends=True),
+            fromfile=f"a/{label}",
+            tofile=f"b/{label}",
+        )
+    )
+
+
+def _run_migrate(args: argparse.Namespace) -> None:
+    """Migrate a FastAPI codebase to HawkAPI."""
+    from hawkapi._migrate.codemod import migrate_file
+
+    if not os.path.exists(args.path):
+        print(f"Error: path '{args.path}' does not exist", file=sys.stderr)
+        sys.exit(1)
+
+    files = _iter_python_files(args.path)
+    if not files:
+        print(f"No Python files found under '{args.path}'.")
+        return
+
+    src_root = (
+        os.path.abspath(args.path)
+        if os.path.isdir(args.path)
+        else os.path.dirname(os.path.abspath(args.path))
+    )
+    out_root = os.path.abspath(args.output) if args.output else None
+
+    modified = 0
+    total_warnings = 0
+    for fpath in files:
+        try:
+            with open(fpath, encoding="utf-8") as fh:
+                source = fh.read()
+        except OSError as exc:
+            print(f"  skip {fpath}: {exc}", file=sys.stderr)
+            continue
+
+        new_source, warnings = migrate_file(source, convert_models=args.convert_models)
+
+        for w in warnings:
+            print(f"  warn {fpath}: {w}", file=sys.stderr)
+        total_warnings += len(warnings)
+
+        changed = new_source != source
+
+        if args.dry_run:
+            if changed:
+                rel = os.path.relpath(fpath, src_root) if os.path.isdir(args.path) else fpath
+                print(_unified_diff(source, new_source, rel), end="")
+                modified += 1
+            continue
+
+        if out_root is not None:
+            rel = (
+                os.path.relpath(fpath, src_root)
+                if os.path.isdir(args.path)
+                else os.path.basename(fpath)
+            )
+            dest = os.path.join(out_root, rel)
+            os.makedirs(os.path.dirname(dest) or out_root, exist_ok=True)
+            with open(dest, "w", encoding="utf-8") as fh:
+                fh.write(new_source)
+            if changed:
+                modified += 1
+        elif changed:
+            with open(fpath, "w", encoding="utf-8") as fh:
+                fh.write(new_source)
+            modified += 1
+
+    suffix = " (dry-run)" if args.dry_run else ""
+    print(f"Migrated {modified} files, {total_warnings} warnings{suffix}")
 
 
 if __name__ == "__main__":

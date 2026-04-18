@@ -33,7 +33,8 @@ jobs:
         run: uv sync --extra dev --extra pydantic
 
       - name: Run tests with coverage
-        run: uv run pytest tests/ --cov=hawkapi --cov-report=xml -q
+        # Exclude tests/perf — those run in the dedicated memory-check job.
+        run: uv run pytest tests/ --ignore=tests/perf --cov=hawkapi --cov-report=xml -q
 
       - name: Upload coverage
         if: matrix.python-version == '3.13'
@@ -84,3 +85,33 @@ jobs:
 
       - name: Pyright
         run: uv run pyright src/
+
+  memory-check:
+    name: Memory Budget Check
+    # pytest-memray supports Linux and macOS only — never run on Windows.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.13
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run memory budget tests
+        run: uv run pytest tests/perf/ -m memory --memray --memray-bin-path=/tmp -v
+
+      - name: Upload memray binary artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: memray-bin
+          path: /tmp/*.bin
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "tests": {
+    "tests/perf/test_memory_budget.py::test_app_init_memory_budget": {
+      "peak_bytes": 25496,
+      "recorded_at": "2026-04-18T08:52:04Z"
+    },
+    "tests/perf/test_memory_budget.py::test_no_leaks_in_request_loop": {
+      "peak_bytes": 41515,
+      "recorded_at": "2026-04-18T08:52:04Z"
+    },
+    "tests/perf/test_memory_budget.py::test_single_request_memory_budget": {
+      "peak_bytes": 25496,
+      "recorded_at": "2026-04-18T08:52:04Z"
+    }
+  }
+}

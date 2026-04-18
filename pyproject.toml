@@ -43,9 +43,12 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
+    "pytest-memray>=1.7; sys_platform != 'win32'",
+    "pytest-benchmark>=4.0",
     "coverage>=7.0",
     "ruff>=0.8",
     "pyright>=1.1",
+    "libcst>=1.0",
 ]
 docs = [
     "mkdocs-material>=9.0",
@@ -79,10 +82,14 @@ packages = ["src/hawkapi"]
 path = "hatch_build.py"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/unit", "tests/integration"]
 asyncio_mode = "auto"
 filterwarnings = [
     "ignore:cannot collect test class:pytest.PytestCollectionWarning",
+]
+markers = [
+    "memory: memory budget tests (require pytest-memray, run via tests/perf/)",
+    "perf: performance regression tests (run via tests/perf/)",
 ]
 
 [tool.ruff]
