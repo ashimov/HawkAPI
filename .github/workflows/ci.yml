@@ -171,6 +171,12 @@ jobs:
         # uv supports the free-threaded CPython build via the 't' suffix.
         run: uv python install 3.13t
 
+      - name: Verify interpreter is actually free-threaded
+        # Fail fast if `uv python install 3.13t` silently resolved to a
+        # GIL-enabled 3.13 interpreter. Without this guard the rest of the
+        # job would still pass but for the wrong reason.
+        run: uv run --python 3.13t python -c "import sys; assert not sys._is_gil_enabled(), 'expected no-GIL interpreter'"
+
       - name: Install dependencies
         run: uv sync --python 3.13t --extra dev --extra pydantic
 
