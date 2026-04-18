@@ -283,14 +283,16 @@ async def test_metrics_enabled_emits_gauge_and_counter() -> None:
         hold_done.set()
         await holder
 
-    samples = {
-        m.name: m
-        for m in REGISTRY.collect()
-        if m.name.startswith("hawkapi_bulkhead_rejections_total")
-    }
+    samples = {m.name: m for m in REGISTRY.collect() if m.name == "hawkapi_bulkhead_rejections"}
+    assert "hawkapi_bulkhead_rejections" in samples, (
+        "Counter family should be registered as 'hawkapi_bulkhead_rejections' "
+        "(the '_total' suffix is in the sample name, not the family name)"
+    )
     rejections = [
         s
-        for s in samples["hawkapi_bulkhead_rejections_total"].samples
-        if s.labels.get("name") == "metrics_on" and s.labels.get("reason") == "fail_fast"
+        for s in samples["hawkapi_bulkhead_rejections"].samples
+        if s.name == "hawkapi_bulkhead_rejections_total"
+        and s.labels.get("name") == "metrics_on"
+        and s.labels.get("reason") == "fail_fast"
     ]
     assert rejections and rejections[0].value >= 1.0

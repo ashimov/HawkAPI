@@ -163,7 +163,7 @@ def _ensure_metrics() -> None:
     global _metric_rejections, _metric_acquire_latency
     if _metrics_registered:
         return
-    from prometheus_client import Gauge, Histogram  # noqa: PLC0415
+    from prometheus_client import Counter, Gauge, Histogram  # noqa: PLC0415
 
     _metric_in_flight = Gauge(
         "hawkapi_bulkhead_in_flight",
@@ -175,7 +175,7 @@ def _ensure_metrics() -> None:
         "Configured bulkhead capacity.",
         ["name"],
     )
-    _metric_rejections = Gauge(
+    _metric_rejections = Counter(
         "hawkapi_bulkhead_rejections_total",
         "Bulkhead acquire rejections.",
         ["name", "reason"],
