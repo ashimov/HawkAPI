@@ -236,9 +236,7 @@ async def test_check_script_args():
 
     await _call(mw, path="/x")
 
-    check_call = next(
-        c for c in mock_client.evalsha.call_args_list if c[0][0] == "check_sha"
-    )
+    check_call = next(c for c in mock_client.evalsha.call_args_list if c[0][0] == "check_sha")
     # signature: (sha, num_keys, key, now, recovery_timeout, half_open_max)
     assert check_call[0][1] == 1
     assert check_call[0][2] == "cb:cfg:/x"
@@ -270,9 +268,7 @@ async def test_recovery_cycle_half_open_then_close():
     assert sent[0]["status"] == 200
 
     # The single record call should have been invoked with success=1.
-    record_calls = [
-        c for c in mock_client.evalsha.call_args_list if c[0][0] == "record_sha"
-    ]
+    record_calls = [c for c in mock_client.evalsha.call_args_list if c[0][0] == "record_sha"]
     assert len(record_calls) == 1
     assert record_calls[0][0][4] == "1"
 
@@ -291,9 +287,7 @@ async def test_recovery_cycle_half_open_failure_reopens():
     # Probe propagated: inner returned 500 to client.
     assert sent[0]["status"] == 500
 
-    record_calls = [
-        c for c in mock_client.evalsha.call_args_list if c[0][0] == "record_sha"
-    ]
+    record_calls = [c for c in mock_client.evalsha.call_args_list if c[0][0] == "record_sha"]
     assert len(record_calls) == 1
     # success=0 because status >= 500
     assert record_calls[0][0][4] == "0"

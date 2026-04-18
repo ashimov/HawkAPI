@@ -73,9 +73,7 @@ async def test_rejects_over_limit():
     """Concurrent requests beyond the limit are rejected with 503."""
     # Slow inner app — keeps the first request in-flight while we fire the second
     inner = _make_app(latency=0.1)
-    mw = AdaptiveConcurrencyMiddleware(
-        inner, initial_limit=1, min_limit=1, max_limit=1
-    )
+    mw = AdaptiveConcurrencyMiddleware(inner, initial_limit=1, min_limit=1, max_limit=1)
 
     results: list[int | None] = []
 
@@ -98,9 +96,7 @@ async def test_rejects_over_limit():
 async def test_503_has_retry_after_header():
     """503 responses include a Retry-After header and problem+json body."""
     inner = _make_app(latency=0.05)
-    mw = AdaptiveConcurrencyMiddleware(
-        inner, initial_limit=1, min_limit=1, max_limit=1
-    )
+    mw = AdaptiveConcurrencyMiddleware(inner, initial_limit=1, min_limit=1, max_limit=1)
 
     statuses: list[int | None] = []
     headers_seen: list[dict[bytes, bytes]] = []

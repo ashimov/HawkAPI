@@ -248,9 +248,7 @@ class RedisCircuitBreakerMiddleware(Middleware):
             return int(result[0]) == 1  # pyright: ignore[reportUnknownArgumentType,reportIndexIssue]
 
         except Exception:
-            logger.warning(
-                "Redis error during circuit breaker check, falling back to in-memory"
-            )
+            logger.warning("Redis error during circuit breaker check, falling back to in-memory")
             self._redis_available = False
             return await self._check_fallback(path)
 
