@@ -50,6 +50,7 @@ dev = [
     "ruff>=0.8",
     "pyright>=1.1",
     "libcst>=1.0",
+    "fakeredis[lua]>=2.0",
 ]
 docs = [
     "mkdocs-material>=9.0",
