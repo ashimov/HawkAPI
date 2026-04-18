@@ -115,3 +115,41 @@ jobs:
           path: /tmp/*.bin
           if-no-files-found: ignore
           retention-days: 7
+
+  perf-regression:
+    name: Performance Regression Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need history so the committed baseline JSON is available.
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.13
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run performance regression tests
+        # Compares each benchmark's mean against the committed baseline and
+        # fails the job if any hot path regresses by more than 5%.
+        run: |
+          uv run pytest tests/perf/ -m perf --benchmark-only \
+            --benchmark-compare=tests/perf/.benchmark_baseline.json \
+            --benchmark-compare-fail=mean:5% \
+            --benchmark-columns=min,mean,median,stddev,rounds
+
+      - name: Upload benchmark artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-benchmarks
+          path: .benchmarks/
+          if-no-files-found: ignore
+          retention-days: 30

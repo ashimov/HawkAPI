@@ -2,6 +2,26 @@
 
 This guide helps you migrate an existing FastAPI application to HawkAPI. Most concepts map directly — the biggest changes are msgspec instead of Pydantic and a proper DI container instead of ad-hoc `Depends()`.
 
+## Automatic Migration
+
+Run:
+
+    hawkapi migrate ./my_fastapi_app/
+
+This rewrites imports, the app constructor (`FastAPI` → `HawkAPI`),
+`APIRouter` → `Router`, and lifespan hooks (`@app.on_event("startup")` →
+`@app.on_startup`). Pass `--convert-models` to also rewrite Pydantic
+`BaseModel` → `msgspec.Struct` (classes that use `@validator` /
+`@field_validator` are skipped with a warning so you can convert them by hand).
+
+Other flags:
+
+* `--output ./my_hawkapi_app/` — write the migrated tree elsewhere instead of
+  overwriting the source in place.
+* `--dry-run` — print unified diffs without modifying any file.
+
+The codemod is idempotent — running it twice is a no-op.
+
 ## API Mapping Table
 
 | FastAPI | HawkAPI | Notes |

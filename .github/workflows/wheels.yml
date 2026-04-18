@@ -1,0 +1,129 @@
+name: Build wheels
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      upload-to-pypi:
+        description: "Upload built wheels to PyPI"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build_wheels:
+    name: Wheels on ${{ matrix.os }} (${{ matrix.archs }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            archs: "x86_64"
+          - os: ubuntu-latest
+            archs: "aarch64"
+          - os: macos-13
+            archs: "x86_64"
+          - os: macos-14
+            archs: "arm64"
+          - os: windows-latest
+            archs: "AMD64"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # QEMU is required to cross-build Linux aarch64 wheels on x86_64 runners.
+      - name: Set up QEMU
+        if: runner.os == 'Linux' && matrix.archs == 'aarch64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.21.3
+        env:
+          CIBW_ARCHS: ${{ matrix.archs }}
+          CIBW_BUILD: "cp312-* cp313-*"
+          CIBW_SKIP: "pp* cp36-* cp37-* cp38-* cp39-* cp310-* cp311-* *-musllinux_*"
+          CIBW_ENVIRONMENT: "HAWKAPI_BUILD_MYPYC=1"
+          CIBW_BUILD_VERBOSITY: "1"
+          CIBW_TEST_REQUIRES: "pytest pytest-asyncio msgspec"
+          CIBW_TEST_COMMAND: "pytest {project}/tests/unit -x --tb=short -q"
+          # aarch64 cross-builds via QEMU are slow; skip in-emulator tests to
+          # keep wall time under the 6h job limit. Native arches still test.
+          CIBW_TEST_SKIP: "*-linux_aarch64"
+
+      - name: Upload wheel artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-${{ matrix.archs }}
+          path: ./wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 14
+
+  build_sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Build sdist
+        run: uv build --sdist
+
+      - name: Upload sdist artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: ./dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  upload_release_assets:
+    name: Attach wheels to GitHub release
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - name: Download all artefacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+
+  publish_pypi:
+    name: Publish to PyPI
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    environment: pypi
+    if: |
+      github.event_name == 'release' ||
+      (github.event_name == 'workflow_dispatch' && inputs.upload-to-pypi == 'true')
+    steps:
+      - name: Download all artefacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          skip-existing: true
