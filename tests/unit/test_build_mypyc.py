@@ -25,14 +25,12 @@ def build_mypyc(monkeypatch: pytest.MonkeyPatch):
     sys.modules.pop("build_mypyc", None)
 
 
-def test_is_enabled_false_when_env_unset(
-    build_mypyc, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_is_enabled_false_when_env_unset(build_mypyc, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("HAWKAPI_BUILD_MYPYC", raising=False)
     assert build_mypyc.is_enabled() is False
 
 
-@pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on"])
+@pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on", " 1 "])
 def test_is_enabled_true_when_env_set_and_gil_on(
     build_mypyc, monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
@@ -40,6 +38,16 @@ def test_is_enabled_true_when_env_set_and_gil_on(
     # Simulate a GIL-enabled interpreter (the default everywhere today).
     monkeypatch.setattr(sys, "_is_gil_enabled", lambda: True, raising=False)
     assert build_mypyc.is_enabled() is True
+
+
+@pytest.mark.parametrize("value", ["0", "false", "FALSE", "no", "off", "", "   "])
+def test_is_enabled_false_for_falsy_or_unrecognised_env_value(
+    build_mypyc, monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    """Non-whitelist env values must not enable compilation."""
+    monkeypatch.setenv("HAWKAPI_BUILD_MYPYC", value)
+    monkeypatch.setattr(sys, "_is_gil_enabled", lambda: True, raising=False)
+    assert build_mypyc.is_enabled() is False
 
 
 def test_is_enabled_false_on_free_threaded_even_when_env_set(
@@ -50,4 +58,8 @@ def test_is_enabled_false_on_free_threaded_even_when_env_set(
     monkeypatch.setattr(sys, "_is_gil_enabled", lambda: False, raising=False)
     assert build_mypyc.is_enabled() is False
     captured = capsys.readouterr()
+    # Task 2's implementation prints a notice like:
+    #   "HAWKAPI_BUILD_MYPYC is set but the interpreter is free-threaded;
+    #    skipping mypyc compilation."
+    # We only pin the "free-threaded" substring so the message can be reworded.
     assert "free-threaded" in captured.err.lower()
