@@ -52,15 +52,16 @@ In context-manager form there is no HTTP mapping — the caller catches `Bulkhea
 
 ### Redis lease-TTL model
 
-Each `acquire` on the Redis backend:
+Each `acquire` on the Redis backend uses a hash per bulkhead name. Every occupied slot is one field in the hash; the field name is a random lease ID, and the field value is the acquisition timestamp (seconds, float).
 
-1. Atomic `INCR hawkapi:bulkhead:{name}` + `SET hawkapi:bulkhead:{name}:lease:{uuid}` with TTL (default 30 s, configurable).
-2. If post-INCR value > `limit`: `DECR` + `DEL` the lease + `BulkheadFullError` (or retry loop if `max_wait > 0`, backing off by `min(max_wait, 10 ms)`).
-3. On `release`: `DECR hawkapi:bulkhead:{name}` + `DEL` the lease key.
+1. `HSET hawkapi:bulkhead:{name} {lease_id} {timestamp}` — insert a lease field.
+2. `HLEN hawkapi:bulkhead:{name}` — count occupied slots (done in the same pipeline as step 1).
+3. If `HLEN` > `limit`: `HDEL` the just-set field (roll back) + raise `BulkheadFullError` (or retry with `asyncio.sleep(poll_interval)` if `max_wait > 0`).
+4. On `release`: `HDEL hawkapi:bulkhead:{name} {lease_id}`.
 
-If a worker crashes mid-hold, the lease key expires by TTL. A reaper (`Bulkhead.reap_expired_leases(name)` method, plus a future `hawkapi bulkhead reap` CLI subcommand) reconciles the counter with still-living lease keys.
+If a worker crashes mid-hold, the lease field remains in the hash. A reaper (`RedisBulkheadBackend.reap_expired_leases(name)`) scans `HGETALL`, parses each value as a float timestamp, and deletes fields older than `lease_ttl`.
 
-This is the standard "sloppy distributed semaphore" pattern. Correct enough for capacity control; bounded over-capacity window is `≤ TTL` during a crash. Redlock-level correctness is explicitly not a goal.
+Under heavy contention several clients may simultaneously `HSET` + observe `HLEN > limit` + roll back — producing false-negative rejections (acquire fails even though a slot is momentarily free). This is deliberate "sloppy semaphore" behaviour; `max_wait > 0` amortises it via polling.
 
 ### Error class
 

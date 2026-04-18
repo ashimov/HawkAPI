@@ -103,5 +103,6 @@ unless at least one `Bulkhead(metrics=True)` is constructed.
 - Fairness is not guaranteed — waiters are not served strictly FIFO.
 - Nested same-name acquires in the same task work, but can deadlock if
   `limit` is too small; avoid them.
+- Under heavy contention the Redis backend may briefly reject acquires even when capacity exists (several clients race on `HSET` + `HLEN`, observe the counter over the limit, and all roll back). Set `max_wait > 0` so waiters retry through the burst.
 - The Redis backend does not provide Redlock-strength guarantees — if that
   matters, wrap a strict-mode lock around the call yourself.
