@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 import pytest
 
@@ -88,3 +89,91 @@ async def test_local_backend_concurrent_acquires_never_exceed_limit() -> None:
 
     await asyncio.gather(*(worker() for _ in range(20)))
     assert max_in_flight == limit
+
+
+from hawkapi.middleware.bulkhead import Bulkhead
+
+
+async def test_bulkhead_context_manager_basic() -> None:
+    bh = Bulkhead("x", limit=2)
+    async with bh:
+        async with bh:
+            pass
+    async with bh:
+        pass
+
+
+async def test_bulkhead_context_manager_fail_fast_when_full() -> None:
+    bh = Bulkhead("x_ff", limit=1, max_wait=0.0)
+
+    async def hold_forever(ready: asyncio.Event, done: asyncio.Event) -> None:
+        async with bh:
+            ready.set()
+            await done.wait()
+
+    ready = asyncio.Event()
+    done = asyncio.Event()
+    holder = asyncio.create_task(hold_forever(ready, done))
+    try:
+        await ready.wait()
+        with pytest.raises(BulkheadFullError):
+            async with bh:
+                pytest.fail("should not enter")
+    finally:
+        done.set()
+        await holder
+
+
+async def test_bulkhead_context_manager_release_on_exception() -> None:
+    bh = Bulkhead("x_exc", limit=1)
+    with pytest.raises(RuntimeError, match="boom"):
+        async with bh:
+            raise RuntimeError("boom")
+    async with bh:
+        pass
+
+
+async def test_bulkhead_context_manager_release_on_cancel() -> None:
+    bh = Bulkhead("x_cancel", limit=1, max_wait=0.0)
+
+    async def hold_then_cancel(started: asyncio.Event) -> None:
+        async with bh:
+            started.set()
+            await asyncio.sleep(1.0)
+
+    started = asyncio.Event()
+    task = asyncio.create_task(hold_then_cancel(started))
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    async with bh:
+        pass
+
+
+async def test_bulkhead_concurrent_tasks_share_one_instance() -> None:
+    bh = Bulkhead("x_conc", limit=2, max_wait=1.0)
+    in_flight = 0
+    max_in_flight = 0
+    lock = asyncio.Lock()
+
+    async def worker() -> None:
+        nonlocal in_flight, max_in_flight
+        async with bh:
+            async with lock:
+                in_flight += 1
+                max_in_flight = max(max_in_flight, in_flight)
+            await asyncio.sleep(0.01)
+            async with lock:
+                in_flight -= 1
+
+    await asyncio.gather(*(worker() for _ in range(10)))
+    assert max_in_flight == 2
+
+
+async def test_bulkhead_different_names_dont_share_capacity() -> None:
+    bh1 = Bulkhead("a", limit=1, max_wait=0.0)
+    bh2 = Bulkhead("b", limit=1, max_wait=0.0)
+    async with bh1:
+        async with bh2:
+            pass
