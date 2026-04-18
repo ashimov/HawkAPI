@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Opt-in Prometheus metrics for bulkheads (`hawkapi_bulkhead_in_flight`, `_capacity`, `_rejections_total`, `_acquire_latency_seconds`)
 - User guide: `docs/guide/bulkhead.md`
 - `hawkapi.status` module — HTTP and WebSocket status-code constants (FastAPI parity)
+- Route-level `response_model_exclude_none`, `response_model_exclude_unset`, `response_model_exclude_defaults` flags — recursive filtering over msgspec Structs and Pydantic models, zero-overhead when all flags are False (FastAPI parity, DX Gap #3)
 
 ## [0.1.2] - 2026-04-05
 

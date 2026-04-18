@@ -22,6 +22,9 @@ class Route:
     name: str | None = None
     status_code: int = 200
     response_model: type[Any] | None = None
+    response_model_exclude_none: bool = False
+    response_model_exclude_unset: bool = False
+    response_model_exclude_defaults: bool = False
     tags: list[str] = field(default_factory=lambda: [])
     summary: str | None = None
     description: str | None = None

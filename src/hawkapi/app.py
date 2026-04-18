@@ -468,7 +468,14 @@ class HawkAPI(Router):
                     handler_result = await coro
             else:
                 handler_result = await asyncio.to_thread(route.handler, **kwargs)
-            response = self._build_response(handler_result, route.status_code, route.response_model)
+            response = self._build_response(
+                handler_result,
+                route.status_code,
+                route.response_model,
+                exclude_none=route.response_model_exclude_none,
+                exclude_unset=route.response_model_exclude_unset,
+                exclude_defaults=route.response_model_exclude_defaults,
+            )
             handler_succeeded = True
         except TimeoutError:
             response = Response(
@@ -662,6 +669,10 @@ class HawkAPI(Router):
         result: Any,
         status_code: int,
         response_model: type[Any] | None = None,
+        *,
+        exclude_none: bool = False,
+        exclude_unset: bool = False,
+        exclude_defaults: bool = False,
     ) -> Response | JSONResponse:
         """Convert a handler's return value into a Response."""
         if isinstance(result, (Response, JSONResponse)):
@@ -670,6 +681,16 @@ class HawkAPI(Router):
             return Response(status_code=status_code if status_code != 200 else 204)
         if response_model is not None:
             result = self._apply_response_model(result, response_model)
+        if exclude_none or exclude_unset or exclude_defaults:
+            from hawkapi.serialization.filters import apply_exclude_filters
+
+            result = apply_exclude_filters(
+                result,
+                response_model,
+                exclude_none=exclude_none,
+                exclude_unset=exclude_unset,
+                exclude_defaults=exclude_defaults,
+            )
         return JSONResponse(result, status_code=status_code)
 
     @staticmethod
@@ -691,7 +712,12 @@ class HawkAPI(Router):
                 converted = vars(result) if hasattr(result, "__dict__") else result  # pyright: ignore[reportUnknownVariableType]
             return response_model.model_validate(converted)  # pyright: ignore[reportUnknownArgumentType]
 
-        # msgspec path: convert to builtins then validate through the model
+        # msgspec path: skip round-trip when already the right type; otherwise
+        # convert to builtins and validate through the model. ``isinstance`` is
+        # guarded by ``isinstance(response_model, type)`` because parameterized
+        # generics like ``list[Item]`` cannot be the second arg of isinstance.
+        if isinstance(response_model, type) and isinstance(result, response_model):
+            return result
         return msgspec.convert(msgspec.to_builtins(result), response_model)
 
     def _build_validation_error_response(self, exc: RequestValidationError) -> JSONResponse:
