@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Experimental `test-free-threaded` CI job (non-blocking, `continue-on-error: true`)
 - PEP 779 `Programming Language :: Python :: Free Threading :: 1 - Unstable` trove classifier in `pyproject.toml`
 - User guide: `docs/guide/free-threaded.md`
+- Bulkhead primitive (`hawkapi.middleware.Bulkhead`) — Hystrix-style named async concurrency isolator with context-manager and `@bulkhead(...)` decorator forms
+- `LocalBulkheadBackend` (default, `asyncio.Semaphore` per name) and `RedisBulkheadBackend` (distributed, hash + lease-TTL) implementations
+- Opt-in Prometheus metrics for bulkheads (`hawkapi_bulkhead_in_flight`, `_capacity`, `_rejections_total`, `_acquire_latency_seconds`)
+- User guide: `docs/guide/bulkhead.md`
 
 ## [0.1.2] - 2026-04-05
 
