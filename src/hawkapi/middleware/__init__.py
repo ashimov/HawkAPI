@@ -1,11 +1,15 @@
 from hawkapi.middleware._pipeline import MiddlewareEntry
 from hawkapi.middleware.adaptive_concurrency import AdaptiveConcurrencyMiddleware
 from hawkapi.middleware.base import Middleware
+
+# The `bulkhead` decorator function is intentionally NOT re-exported here —
+# it would shadow the `bulkhead.py` submodule binding. Users import the
+# decorator explicitly:
+#     from hawkapi.middleware.bulkhead import bulkhead
 from hawkapi.middleware.bulkhead import (
     Bulkhead,
     BulkheadBackend,
     BulkheadFullError,
-    bulkhead,
 )
 from hawkapi.middleware.circuit_breaker import CircuitBreakerMiddleware
 from hawkapi.middleware.cors import CORSMiddleware
@@ -39,5 +43,4 @@ __all__ = [
     "SecurityHeadersMiddleware",
     "TimingMiddleware",
     "TrustedHostMiddleware",
-    "bulkhead",
 ]
