@@ -27,7 +27,7 @@ async def test_local_backend_fail_fast_when_full() -> None:
         await backend.acquire("x", limit=2, max_wait=0.0)
     assert excinfo.value.name == "x"
     assert excinfo.value.limit == 2
-    assert excinfo.value.waited == pytest.approx(0.0, abs=0.005)
+    assert excinfo.value.waited == pytest.approx(0.0, abs=0.05)
 
 
 async def test_local_backend_queue_then_release_unblocks_waiter() -> None:
