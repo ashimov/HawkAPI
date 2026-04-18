@@ -2,120 +2,6 @@
   "benchmarks": [
     {
       "extra_info": {},
-      "fullname": "tests/perf/test_perf_regression.py::test_radix_tree_lookup_static_perf",
-      "group": null,
-      "name": "test_radix_tree_lookup_static_perf",
-      "options": {
-        "disable_gc": false,
-        "max_time": 1.0,
-        "min_rounds": 5,
-        "min_time": 5e-06,
-        "timer": "perf_counter",
-        "warmup": false
-      },
-      "param": null,
-      "params": null,
-      "stats": {
-        "data": [
-          3.9153954933654147e-07
-        ],
-        "hd15iqr": 4.159956006333232e-07,
-        "iqr": 0.0,
-        "iqr_outliers": 37867,
-        "iterations": 1,
-        "ld15iqr": 3.7500285543501377e-07,
-        "max": 6.03340013185516e-05,
-        "mean": 3.9153954933654147e-07,
-        "median": 3.7500285543501377e-07,
-        "min": 2.9099464882165194e-07,
-        "ops": 2554020.409162974,
-        "outliers": "64;37867",
-        "q1": 3.7500285543501377e-07,
-        "q3": 3.7500285543501377e-07,
-        "rounds": 1,
-        "stddev": 3.195167827193176e-07,
-        "stddev_outliers": 64,
-        "total": 0.03070922993356362
-      }
-    },
-    {
-      "extra_info": {},
-      "fullname": "tests/perf/test_perf_regression.py::test_radix_tree_lookup_param_perf",
-      "group": null,
-      "name": "test_radix_tree_lookup_param_perf",
-      "options": {
-        "disable_gc": false,
-        "max_time": 1.0,
-        "min_rounds": 5,
-        "min_time": 5e-06,
-        "timer": "perf_counter",
-        "warmup": false
-      },
-      "param": null,
-      "params": null,
-      "stats": {
-        "data": [
-          4.553390881909775e-07
-        ],
-        "hd15iqr": 4.666493623517454e-07,
-        "iqr": 8.349888958036889e-09,
-        "iqr_outliers": 12419,
-        "iterations": 1,
-        "ld15iqr": 4.3124964577145875e-07,
-        "max": 6.3520499679725615e-06,
-        "mean": 4.553390881909775e-07,
-        "median": 4.478999471757561e-07,
-        "min": 4.0414961404167117e-07,
-        "ops": 2196165.5081555,
-        "outliers": "4810;12419",
-        "q1": 4.4374974095262587e-07,
-        "q3": 4.5209962991066276e-07,
-        "rounds": 1,
-        "stddev": 7.301475706085432e-08,
-        "stddev_outliers": 4810,
-        "total": 0.05228977487058728
-      }
-    },
-    {
-      "extra_info": {},
-      "fullname": "tests/perf/test_perf_regression.py::test_radix_tree_lookup_miss_perf",
-      "group": null,
-      "name": "test_radix_tree_lookup_miss_perf",
-      "options": {
-        "disable_gc": false,
-        "max_time": 1.0,
-        "min_rounds": 5,
-        "min_time": 5e-06,
-        "timer": "perf_counter",
-        "warmup": false
-      },
-      "param": null,
-      "params": null,
-      "stats": {
-        "data": [
-          2.2267178216097083e-07
-        ],
-        "hd15iqr": 2.300430028496877e-07,
-        "iqr": 5.434191299845348e-09,
-        "iqr_outliers": 17383,
-        "iterations": 1,
-        "ld15iqr": 2.0830433957440697e-07,
-        "max": 4.62139091130508e-06,
-        "mean": 2.2267178216097083e-07,
-        "median": 2.1739169428853886e-07,
-        "min": 1.974346915907834e-07,
-        "ops": 4490914.790797757,
-        "outliers": "6487;17383",
-        "q1": 2.1556574527336203e-07,
-        "q3": 2.2099993657320738e-07,
-        "rounds": 1,
-        "stddev": 4.982177568654868e-08,
-        "stddev_outliers": 6487,
-        "total": 0.04241385305067524
-      }
-    },
-    {
-      "extra_info": {},
       "fullname": "tests/perf/test_perf_regression.py::test_handler_plan_build_perf",
       "group": null,
       "name": "test_handler_plan_build_perf",
@@ -131,101 +17,25 @@
       "params": null,
       "stats": {
         "data": [
-          3.1099123172217205e-05
+          0.00019834584573485988
         ],
-        "hd15iqr": 3.1790987122803926e-05,
-        "iqr": 6.669870344921947e-07,
-        "iqr_outliers": 777,
+        "hd15iqr": 0.00018060000002151355,
+        "iqr": 5.599998985417187e-05,
+        "iqr_outliers": 307,
         "iterations": 1,
-        "ld15iqr": 2.9082992114126682e-05,
-        "max": 0.0007570410089101642,
-        "mean": 3.1099123172217205e-05,
-        "median": 3.0333001632243395e-05,
-        "min": 2.7959002181887627e-05,
-        "ops": 32155.247415250687,
-        "outliers": "44;777",
-        "q1": 3.0082999728620052e-05,
-        "q3": 3.074998676311225e-05,
+        "ld15iqr": 3.2200347050093114e-05,
+        "max": 0.1977468496457732,
+        "mean": 0.00019834584573485988,
+        "median": 3.469304647296667e-05,
+        "min": 3.2200347050093114e-05,
+        "ops": 5041.698737349692,
+        "outliers": "34;307",
+        "q1": 3.36000113748014e-05,
+        "q3": 9.240000072168187e-05,
         "rounds": 1,
-        "stddev": 1.0206858244390312e-05,
-        "stddev_outliers": 44,
-        "total": 0.17689181260357145
-      }
-    },
-    {
-      "extra_info": {},
-      "fullname": "tests/perf/test_perf_regression.py::test_response_build_headers_fast_path_perf",
-      "group": null,
-      "name": "test_response_build_headers_fast_path_perf",
-      "options": {
-        "disable_gc": false,
-        "max_time": 1.0,
-        "min_rounds": 5,
-        "min_time": 5e-06,
-        "timer": "perf_counter",
-        "warmup": false
-      },
-      "param": null,
-      "params": null,
-      "stats": {
-        "data": [
-          1.7453480442140882e-07
-        ],
-        "hd15iqr": 2.079905243590474e-07,
-        "iqr": 1.4551915228366852e-11,
-        "iqr_outliers": 41147,
-        "iterations": 1,
-        "ld15iqr": 1.66997779160738e-07,
-        "max": 1.2083008186891675e-05,
-        "mean": 1.7453480442140882e-07,
-        "median": 1.66997779160738e-07,
-        "min": 8.298957254737616e-08,
-        "ops": 5729516.260754109,
-        "outliers": "356;41147",
-        "q1": 1.66997779160738e-07,
-        "q3": 1.6701233107596636e-07,
-        "rounds": 1,
-        "stddev": 8.506814497479111e-08,
-        "stddev_outliers": 356,
-        "total": 0.017750015074852854
-      }
-    },
-    {
-      "extra_info": {},
-      "fullname": "tests/perf/test_perf_regression.py::test_response_build_headers_with_user_headers_perf",
-      "group": null,
-      "name": "test_response_build_headers_with_user_headers_perf",
-      "options": {
-        "disable_gc": false,
-        "max_time": 1.0,
-        "min_rounds": 5,
-        "min_time": 5e-06,
-        "timer": "perf_counter",
-        "warmup": false
-      },
-      "param": null,
-      "params": null,
-      "stats": {
-        "data": [
-          4.4255384610544176e-07
-        ],
-        "hd15iqr": 4.520494258031249e-07,
-        "iqr": 8.349888958036889e-09,
-        "iqr_outliers": 11177,
-        "iterations": 1,
-        "ld15iqr": 4.166497092228383e-07,
-        "max": 5.947949830442667e-06,
-        "mean": 4.4255384610544176e-07,
-        "median": 4.3334948713891207e-07,
-        "min": 3.8959988160058854e-07,
-        "ops": 2259612.0422411663,
-        "outliers": "4731;11177",
-        "q1": 4.291498044040054e-07,
-        "q3": 4.374996933620423e-07,
-        "rounds": 1,
-        "stddev": 8.087675903163171e-08,
-        "stddev_outliers": 4731,
-        "total": 0.046379643071850295
+        "stddev": 0.002986960116526475,
+        "stddev_outliers": 34,
+        "total": 0.9851838157650491
       }
     },
     {
@@ -245,63 +55,25 @@
       "params": null,
       "stats": {
         "data": [
-          1.415223471397394e-07
+          2.573115716977919e-07
         ],
-        "hd15iqr": 2.4998735170811415e-07,
-        "iqr": 4.099274519830942e-08,
-        "iqr_outliers": 267,
+        "hd15iqr": 7.875059964135289e-07,
+        "iqr": 2.4998735170811415e-07,
+        "iqr_outliers": 3,
         "iterations": 1,
-        "ld15iqr": 8.298957254737616e-08,
-        "max": 7.350000669248402e-05,
-        "mean": 1.415223471397394e-07,
-        "median": 1.2500095181167126e-07,
-        "min": 8.298957254737616e-08,
-        "ops": 7066021.8701192,
-        "outliers": "31;267",
-        "q1": 1.2500095181167126e-07,
-        "q3": 1.6599369700998068e-07,
+        "ld15iqr": 8.715433068573475e-08,
+        "max": 7.80496520746965e-05,
+        "mean": 2.573115716977919e-07,
+        "median": 1.743086613714695e-07,
+        "min": 8.715433068573475e-08,
+        "ops": 3886339.0146109834,
+        "outliers": "1;3",
+        "q1": 1.3125099940225482e-07,
+        "q3": 3.937377186957747e-07,
         "rounds": 1,
-        "stddev": 3.05100313571965e-07,
-        "stddev_outliers": 31,
-        "total": 0.01732856227317825
-      }
-    },
-    {
-      "extra_info": {},
-      "fullname": "tests/perf/test_perf_regression.py::test_msgspec_encode_struct_perf",
-      "group": null,
-      "name": "test_msgspec_encode_struct_perf",
-      "options": {
-        "disable_gc": false,
-        "max_time": 1.0,
-        "min_rounds": 5,
-        "min_time": 5e-06,
-        "timer": "perf_counter",
-        "warmup": false
-      },
-      "param": null,
-      "params": null,
-      "stats": {
-        "data": [
-          1.0197013290836498e-07
-        ],
-        "hd15iqr": 9.915995178744197e-08,
-        "iqr": 3.3300602808594725e-09,
-        "iqr_outliers": 20680,
-        "iterations": 1,
-        "ld15iqr": 8.584000170230866e-08,
-        "max": 5.742291992646642e-05,
-        "mean": 1.0197013290836498e-07,
-        "median": 9.166993550024927e-08,
-        "min": 8.165996405296028e-08,
-        "ops": 9806793.141072452,
-        "outliers": "303;20680",
-        "q1": 9.082999895326793e-08,
-        "q3": 9.41600592341274e-08,
-        "rounds": 1,
-        "stddev": 2.7836766464694515e-07,
-        "stddev_outliers": 303,
-        "total": 0.0114355425251415
+        "stddev": 1.0793532869056474e-06,
+        "stddev_outliers": 1,
+        "total": 0.0012255750159965828
       }
     },
     {
@@ -321,25 +93,253 @@
       "params": null,
       "stats": {
         "data": [
-          4.2555270627051815e-06
+          8.72685317742855e-06
         ],
-        "hd15iqr": 4.7909998102113605e-06,
-        "iqr": 2.910092007368803e-07,
-        "iqr_outliers": 2163,
+        "hd15iqr": 2.069446272798814e-05,
+        "iqr": 5.875015631318092e-06,
+        "iqr_outliers": 178,
         "iterations": 1,
-        "ld15iqr": 3.875000402331352e-06,
-        "max": 4.975000047124922e-05,
-        "mean": 4.2555270627051815e-06,
-        "median": 4.1660096030682325e-06,
-        "min": 3.875000402331352e-06,
-        "ops": 234988.51852308828,
-        "outliers": "1827;2163",
-        "q1": 4.04199818149209e-06,
-        "q3": 4.3330073822289705e-06,
+        "ld15iqr": 4.987492138752714e-06,
+        "max": 0.003636194097634871,
+        "mean": 8.72685317742855e-06,
+        "median": 5.161800800124183e-06,
+        "min": 4.987492138752714e-06,
+        "ops": 114588.842010822,
+        "outliers": "74;178",
+        "q1": 5.118743138154969e-06,
+        "q3": 1.1287509551038966e-05,
         "rounds": 1,
-        "stddev": 6.171932590247893e-07,
-        "stddev_outliers": 1827,
-        "total": 0.18878369155572727
+        "stddev": 3.6664537199061026e-05,
+        "stddev_outliers": 74,
+        "total": 0.09239119458943605
+      }
+    },
+    {
+      "extra_info": {},
+      "fullname": "tests/perf/test_perf_regression.py::test_msgspec_encode_struct_perf",
+      "group": null,
+      "name": "test_msgspec_encode_struct_perf",
+      "options": {
+        "disable_gc": false,
+        "max_time": 1.0,
+        "min_rounds": 5,
+        "min_time": 5e-06,
+        "timer": "perf_counter",
+        "warmup": false
+      },
+      "param": null,
+      "params": null,
+      "stats": {
+        "data": [
+          4.1238282398389464e-07
+        ],
+        "hd15iqr": 4.900345447822474e-07,
+        "iqr": 1.4585093595087527e-07,
+        "iqr_outliers": 2790,
+        "iterations": 1,
+        "ld15iqr": 9.623188816476615e-08,
+        "max": 0.0021483765449738716,
+        "mean": 4.1238282398389464e-07,
+        "median": 1.093577520805411e-07,
+        "min": 9.623188816476615e-08,
+        "ops": 2424931.257658428,
+        "outliers": "413;2790",
+        "q1": 1.0715215466916562e-07,
+        "q3": 2.6029563741758467e-07,
+        "rounds": 1,
+        "stddev": 1.0350242121154314e-05,
+        "stddev_outliers": 413,
+        "total": 0.07441035675965395
+      }
+    },
+    {
+      "extra_info": {},
+      "fullname": "tests/perf/test_perf_regression.py::test_radix_tree_lookup_miss_perf",
+      "group": null,
+      "name": "test_radix_tree_lookup_miss_perf",
+      "options": {
+        "disable_gc": false,
+        "max_time": 1.0,
+        "min_rounds": 5,
+        "min_time": 5e-06,
+        "timer": "perf_counter",
+        "warmup": false
+      },
+      "param": null,
+      "params": null,
+      "stats": {
+        "data": [
+          4.632633536238973e-07
+        ],
+        "hd15iqr": 2.6664929464459425e-07,
+        "iqr": 7.90515471072427e-09,
+        "iqr_outliers": 31354,
+        "iterations": 1,
+        "ld15iqr": 2.353997842874378e-07,
+        "max": 0.003206066650454886,
+        "mean": 4.632633536238973e-07,
+        "median": 2.499997208360583e-07,
+        "min": 2.3124957806430758e-07,
+        "ops": 2158599.406099052,
+        "outliers": "152;31354",
+        "q1": 2.4584951461292805e-07,
+        "q3": 2.5414992705918853e-07,
+        "rounds": 1,
+        "stddev": 1.288299119541098e-05,
+        "stddev_outliers": 152,
+        "total": 0.091899404511787
+      }
+    },
+    {
+      "extra_info": {},
+      "fullname": "tests/perf/test_perf_regression.py::test_radix_tree_lookup_param_perf",
+      "group": null,
+      "name": "test_radix_tree_lookup_param_perf",
+      "options": {
+        "disable_gc": false,
+        "max_time": 1.0,
+        "min_rounds": 5,
+        "min_time": 5e-06,
+        "timer": "perf_counter",
+        "warmup": false
+      },
+      "param": null,
+      "params": null,
+      "stats": {
+        "data": [
+          1.3146389527012164e-06
+        ],
+        "hd15iqr": 2.218124318460468e-06,
+        "iqr": 6.541493348777294e-07,
+        "iqr_outliers": 4316,
+        "iterations": 1,
+        "ld15iqr": 4.747046114061959e-07,
+        "max": 0.0023734156420687214,
+        "mean": 1.3146389527012164e-06,
+        "median": 5.118750777910463e-07,
+        "min": 4.747046114061959e-07,
+        "ops": 760665.1225001959,
+        "outliers": "417;4316",
+        "q1": 5.009555752621963e-07,
+        "q3": 1.1878123768838123e-06,
+        "rounds": 1,
+        "stddev": 1.5066810335123817e-05,
+        "stddev_outliers": 417,
+        "total": 0.13201867290816155
+      }
+    },
+    {
+      "extra_info": {},
+      "fullname": "tests/perf/test_perf_regression.py::test_radix_tree_lookup_static_perf",
+      "group": null,
+      "name": "test_radix_tree_lookup_static_perf",
+      "options": {
+        "disable_gc": false,
+        "max_time": 1.0,
+        "min_rounds": 5,
+        "min_time": 5e-06,
+        "timer": "perf_counter",
+        "warmup": false
+      },
+      "param": null,
+      "params": null,
+      "stats": {
+        "data": [
+          6.851722585272813e-07
+        ],
+        "hd15iqr": 1.793386763893068e-06,
+        "iqr": 5.010078893974423e-07,
+        "iqr_outliers": 177,
+        "iterations": 1,
+        "ld15iqr": 3.496410499792546e-07,
+        "max": 6.396180542651564e-05,
+        "mean": 6.851722585272813e-07,
+        "median": 4.3784966692328457e-07,
+        "min": 3.496410499792546e-07,
+        "ops": 1459486.9940435328,
+        "outliers": "170;177",
+        "q1": 4.367953806649894e-07,
+        "q3": 9.628536645323039e-07,
+        "rounds": 1,
+        "stddev": 1.198712215719753e-06,
+        "stddev_outliers": 170,
+        "total": 0.021218414502072847
+      }
+    },
+    {
+      "extra_info": {},
+      "fullname": "tests/perf/test_perf_regression.py::test_response_build_headers_fast_path_perf",
+      "group": null,
+      "name": "test_response_build_headers_fast_path_perf",
+      "options": {
+        "disable_gc": false,
+        "max_time": 1.0,
+        "min_rounds": 5,
+        "min_time": 5e-06,
+        "timer": "perf_counter",
+        "warmup": false
+      },
+      "param": null,
+      "params": null,
+      "stats": {
+        "data": [
+          5.279034305388615e-07
+        ],
+        "hd15iqr": 8.746450475882739e-07,
+        "iqr": 2.4901237338781357e-07,
+        "iqr_outliers": 311,
+        "iterations": 1,
+        "ld15iqr": 1.3123571989126505e-07,
+        "max": 0.0016626319513306953,
+        "mean": 5.279034305388615e-07,
+        "median": 4.808920493815094e-07,
+        "min": 1.3123571989126505e-07,
+        "ops": 1894285.8525833827,
+        "outliers": "113;311",
+        "q1": 2.1944433683529497e-07,
+        "q3": 4.809073288924993e-07,
+        "rounds": 1,
+        "stddev": 7.531353498649889e-06,
+        "stddev_outliers": 113,
+        "total": 0.04140452186402399
+      }
+    },
+    {
+      "extra_info": {},
+      "fullname": "tests/perf/test_perf_regression.py::test_response_build_headers_with_user_headers_perf",
+      "group": null,
+      "name": "test_response_build_headers_with_user_headers_perf",
+      "options": {
+        "disable_gc": false,
+        "max_time": 1.0,
+        "min_rounds": 5,
+        "min_time": 5e-06,
+        "timer": "perf_counter",
+        "warmup": false
+      },
+      "param": null,
+      "params": null,
+      "stats": {
+        "data": [
+          2.355543541216074e-06
+        ],
+        "hd15iqr": 2.405545092187822e-06,
+        "iqr": 7.079943316057324e-07,
+        "iqr_outliers": 1129,
+        "iterations": 1,
+        "ld15iqr": 4.3784966692328457e-07,
+        "max": 0.04275866910611512,
+        "mean": 2.355543541216074e-06,
+        "median": 5.680463800672442e-07,
+        "min": 4.3784966692328457e-07,
+        "ops": 424530.46717350837,
+        "outliers": "120;1129",
+        "q1": 5.250039976090193e-07,
+        "q3": 1.2683980457950385e-06,
+        "rounds": 1,
+        "stddev": 0.0001415741029189033,
+        "stddev_outliers": 120,
+        "total": 0.4009464883245528
       }
     }
   ],
@@ -348,7 +348,7 @@
     "dirty": false,
     "id": "baseline"
   },
-  "datetime": "2026-04-18T08:47:28.606785+00:00",
+  "datetime": "2026-04-18T08:51:51.823637+00:00",
   "machine_info": {
     "node": "ci-baseline"
   },
