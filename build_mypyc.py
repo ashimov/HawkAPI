@@ -1,0 +1,72 @@
+"""mypyc compilation entry point for HawkAPI hot-path modules.
+
+Compilation is OPT-IN. Set the environment variable ``HAWKAPI_BUILD_MYPYC=1``
+when building (e.g. ``HAWKAPI_BUILD_MYPYC=1 uv build --wheel`` or
+``HAWKAPI_BUILD_MYPYC=1 pip install hawkapi --no-binary hawkapi``).
+
+When the env var is unset, this module returns an empty extension list and the
+package installs as pure Python — preserving the default ``pip install hawkapi``
+behaviour and PyPy compatibility.
+
+The selected modules are pure-typed hot paths: route lookup (radix tree, route
+record, param converters), response writers (Response, JSONResponse) and the
+ASGI middleware pipeline builder. Each remains importable as plain Python when
+the compiled ``.so`` is absent — there are no compile-only constructs.
+"""
+
+from __future__ import annotations
+
+import os
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+# Modules selected for mypyc compilation. Paths are relative to the project root
+# (the directory containing ``pyproject.toml``).
+#
+# IMPORTANT: ``responses/response.py`` and ``responses/json_response.py`` are
+# intentionally EXCLUDED because user code (and the bundled
+# ``PlainTextResponse``/``HTMLResponse``/``RedirectResponse`` helpers) subclasses
+# them. mypyc rejects ``interpreted classes cannot inherit from compiled``
+# subclassing at runtime, so compiling these would break the public API.
+# Compiling the radix tree, route record, param converters and middleware
+# pipeline still captures the dominant request-routing hot path.
+HOT_MODULES: tuple[str, ...] = (
+    "src/hawkapi/routing/_radix_tree.py",
+    "src/hawkapi/routing/route.py",
+    "src/hawkapi/routing/param_converters.py",
+    "src/hawkapi/middleware/_pipeline.py",
+)
+
+
+def is_enabled() -> bool:
+    """Return True when mypyc compilation has been opted into."""
+    return os.environ.get("HAWKAPI_BUILD_MYPYC", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def build_extensions() -> Sequence[Any]:
+    """Return the list of mypyc-built ``Extension`` objects.
+
+    Returns an empty list when ``HAWKAPI_BUILD_MYPYC`` is not set so the build
+    backend can skip the C compilation step entirely.
+    """
+    if not is_enabled():
+        return []
+
+    # Import lazily so pure-Python builds never need ``mypy`` installed.
+    from mypyc.build import mypycify  # noqa: PLC0415
+
+    return mypycify(
+        list(HOT_MODULES),
+        strip_asserts=False,
+        # Give the shared mypyc helper module a stable, namespaced name so it
+        # cannot collide with other mypyc-compiled packages on the same
+        # interpreter (otherwise mypyc generates a random hash-based name).
+        group_name="hawkapi_hot",
+    )

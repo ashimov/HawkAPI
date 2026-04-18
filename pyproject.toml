@@ -60,6 +60,9 @@ bench = [
     "sanic>=24.6",
     "pydantic>=2.0",
 ]
+build = [
+    "mypy>=1.13",
+]
 
 [project.scripts]
 hawkapi = "hawkapi.cli:main"
@@ -71,6 +74,9 @@ Repository = "https://github.com/ashimov/HawkAPI"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hawkapi"]
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

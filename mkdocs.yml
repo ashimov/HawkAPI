@@ -47,6 +47,7 @@ nav:
       - Configuration: guide/configuration.md
       - Testing: guide/testing.md
       - Deployment: guide/deployment.md
+      - Performance: guide/performance.md
       - Migration from FastAPI: guide/migration-from-fastapi.md
   - API Reference: api/index.md
 
