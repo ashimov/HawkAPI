@@ -244,3 +244,66 @@ async def test_bulkhead_decorator_preserves_handler_args() -> None:
         return x + y
 
     assert await handler(1, y=2) == 3
+
+
+prom = pytest.importorskip("prometheus_client")
+
+
+async def test_metrics_disabled_by_default_no_prometheus_attr() -> None:
+    import hawkapi.middleware.bulkhead as bh_mod
+
+    bh = Bulkhead("metrics_off", limit=1)
+    async with bh:
+        pass
+    # The lazy-loaded metric globals stay None until metrics=True triggers init.
+    assert bh_mod._metric_in_flight is None or bh_mod._metrics_registered is False
+
+
+async def test_metrics_enabled_emits_gauge_and_counter() -> None:
+    bh = Bulkhead("metrics_on", limit=1, max_wait=0.0, metrics=True)
+    from prometheus_client import REGISTRY
+
+    async with bh:
+        samples = {
+            m.name: m
+            for m in REGISTRY.collect()
+            if m.name.startswith("hawkapi_bulkhead")
+        }
+        in_flight = next(
+            s
+            for s in samples["hawkapi_bulkhead_in_flight"].samples
+            if s.labels.get("name") == "metrics_on"
+        )
+        assert in_flight.value == 1.0
+
+    # Trigger a rejection and check the counter.
+    started = asyncio.Event()
+    hold_done = asyncio.Event()
+
+    async def hold() -> None:
+        async with bh:
+            started.set()
+            await hold_done.wait()
+
+    holder = asyncio.create_task(hold())
+    try:
+        await started.wait()
+        with pytest.raises(BulkheadFullError):
+            async with bh:
+                pass
+    finally:
+        hold_done.set()
+        await holder
+
+    samples = {
+        m.name: m
+        for m in REGISTRY.collect()
+        if m.name.startswith("hawkapi_bulkhead_rejections_total")
+    }
+    rejections = [
+        s
+        for s in samples["hawkapi_bulkhead_rejections_total"].samples
+        if s.labels.get("name") == "metrics_on"
+        and s.labels.get("reason") == "fail_fast"
+    ]
+    assert rejections and rejections[0].value >= 1.0
