@@ -42,27 +42,34 @@ def test_maybe_thread_lock_returns_real_lock_under_free_threaded(
         pass
 
 
-def test_maybe_async_lock_is_noop_under_gil(
+async def test_maybe_async_lock_is_noop_under_gil(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Null async lock: full ``asyncio.Lock`` protocol, all no-op."""
     monkeypatch.setattr(_threading, "FREE_THREADED", False)
     lock = _threading.maybe_async_lock()
 
-    async def use() -> bool:
-        async with lock:
-            return True
+    # Context-manager path.
+    async with lock:
+        pass
 
-    assert asyncio.run(use()) is True
-    # Null async lock must never report being held.
+    # Direct acquire / release / locked — must all behave as no-ops and never
+    # report the lock as held.
+    assert await lock.acquire() is True
+    assert lock.locked() is False
+    lock.release()
     assert lock.locked() is False
 
 
-def test_maybe_async_lock_returns_real_lock_under_free_threaded(
+async def test_maybe_async_lock_returns_real_lock_under_free_threaded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(_threading, "FREE_THREADED", True)
     lock = _threading.maybe_async_lock()
     assert isinstance(lock, asyncio.Lock)
+    async with lock:
+        assert lock.locked() is True
+    assert lock.locked() is False
 
 
 def test_detect_free_threaded_handles_missing_attribute(
