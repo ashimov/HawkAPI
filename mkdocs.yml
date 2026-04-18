@@ -49,6 +49,7 @@ nav:
       - Deployment: guide/deployment.md
       - HTTP/2 and HTTPS: guide/http2.md
       - Performance: guide/performance.md
+      - Bulkhead: guide/bulkhead.md
       - Free-threaded Python (PEP 703): guide/free-threaded.md
       - Migration from FastAPI: guide/migration-from-fastapi.md
   - API Reference: api/index.md
