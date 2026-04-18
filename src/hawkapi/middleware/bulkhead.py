@@ -15,9 +15,14 @@ Two public forms share one implementation:
 from __future__ import annotations
 
 import asyncio
+import math
 import time
+from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
-from typing import Protocol
+from functools import wraps
+from typing import Any, Protocol, TypeVar
+
+from hawkapi.exceptions import HTTPException
 
 
 class BulkheadFullError(Exception):
@@ -202,9 +207,51 @@ class Bulkhead:
         return self._limit
 
 
+F = TypeVar("F", bound=Callable[..., Awaitable[Any]])
+
+
+def bulkhead(
+    name: str,
+    limit: int,
+    max_wait: float = 0.0,
+    *,
+    backend: BulkheadBackend | None = None,
+    status_code: int = 503,
+    retry_after: float = 1.0,
+) -> Callable[[F], F]:
+    """Decorate an async handler so it acquires a bulkhead slot per call.
+
+    On rejection, the wrapped handler raises ``HTTPException`` with the
+    configured ``status_code`` (default 503) and a ``Retry-After`` header
+    (default 1.0 s, rounded up to an integer per RFC 9110).
+    """
+    if retry_after < 0:
+        raise ValueError(f"retry_after must be >= 0, got {retry_after}")
+    retry_after_header = str(max(1, math.ceil(retry_after)))
+    bh = Bulkhead(name, limit, max_wait=max_wait, backend=backend)
+
+    def decorator(func: F) -> F:
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                async with bh:
+                    return await func(*args, **kwargs)
+            except BulkheadFullError as exc:
+                raise HTTPException(
+                    status_code=status_code,
+                    detail="bulkhead_full",
+                    headers={"Retry-After": retry_after_header},
+                ) from exc
+
+        return wrapper  # type: ignore[return-value]
+
+    return decorator
+
+
 __all__ = [
     "Bulkhead",
     "BulkheadBackend",
     "BulkheadFullError",
     "LocalBulkheadBackend",
+    "bulkhead",
 ]
