@@ -150,6 +150,44 @@ def _pop_token(name: str) -> object | None:
     return token
 
 
+# Lazily initialised on first Bulkhead(metrics=True) construction.
+_metrics_registered: bool = False
+_metric_in_flight: Any = None
+_metric_capacity: Any = None
+_metric_rejections: Any = None
+_metric_acquire_latency: Any = None
+
+
+def _ensure_metrics() -> None:
+    global _metrics_registered, _metric_in_flight, _metric_capacity
+    global _metric_rejections, _metric_acquire_latency
+    if _metrics_registered:
+        return
+    from prometheus_client import Gauge, Histogram  # noqa: PLC0415
+
+    _metric_in_flight = Gauge(
+        "hawkapi_bulkhead_in_flight",
+        "Currently-occupied bulkhead slots.",
+        ["name"],
+    )
+    _metric_capacity = Gauge(
+        "hawkapi_bulkhead_capacity",
+        "Configured bulkhead capacity.",
+        ["name"],
+    )
+    _metric_rejections = Gauge(
+        "hawkapi_bulkhead_rejections_total",
+        "Bulkhead acquire rejections.",
+        ["name", "reason"],
+    )
+    _metric_acquire_latency = Histogram(
+        "hawkapi_bulkhead_acquire_latency_seconds",
+        "Time spent waiting for a bulkhead slot.",
+        ["name"],
+    )
+    _metrics_registered = True
+
+
 class Bulkhead:
     """Named, size-limited async concurrency isolator.
 
@@ -163,7 +201,7 @@ class Bulkhead:
     in a task-local ``ContextVar``.
     """
 
-    __slots__ = ("_name", "_limit", "_max_wait", "_backend")
+    __slots__ = ("_name", "_limit", "_max_wait", "_backend", "_metrics")
 
     def __init__(
         self,
@@ -172,6 +210,7 @@ class Bulkhead:
         max_wait: float = 0.0,
         *,
         backend: BulkheadBackend | None = None,
+        metrics: bool = False,
     ) -> None:
         if limit < 1:
             raise ValueError(f"limit must be >= 1, got {limit}")
@@ -181,9 +220,24 @@ class Bulkhead:
         self._limit = limit
         self._max_wait = max_wait
         self._backend: BulkheadBackend = backend or _DEFAULT_LOCAL_BACKEND
+        self._metrics = metrics
+        if metrics:
+            _ensure_metrics()
+            _metric_capacity.labels(name=name).set(float(limit))
 
     async def __aenter__(self) -> Bulkhead:
-        token = await self._backend.acquire(self._name, self._limit, self._max_wait)
+        start = time.monotonic()
+        try:
+            token = await self._backend.acquire(self._name, self._limit, self._max_wait)
+        except BulkheadFullError as exc:
+            if self._metrics:
+                reason = "timeout" if self._max_wait > 0 else "fail_fast"
+                _metric_rejections.labels(name=self._name, reason=reason).inc()
+                _metric_acquire_latency.labels(name=self._name).observe(exc.waited)
+            raise
+        if self._metrics:
+            _metric_acquire_latency.labels(name=self._name).observe(time.monotonic() - start)
+            _metric_in_flight.labels(name=self._name).inc()
         _push_token(self._name, token)
         return self
 
@@ -192,11 +246,12 @@ class Bulkhead:
         try:
             await self._backend.release(self._name, token)
         except Exception as release_exc:
-            # Body-raised exception takes priority; chain release failure
-            # as its __cause__ so both are visible in tracebacks.
             if exc is not None:
                 raise release_exc from exc
             raise
+        finally:
+            if self._metrics:
+                _metric_in_flight.labels(name=self._name).dec()
 
     @property
     def name(self) -> str:
