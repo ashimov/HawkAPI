@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 
 import pytest
 
+from hawkapi.exceptions import HTTPException
 from hawkapi.middleware.bulkhead import (
+    Bulkhead,
     BulkheadFullError,
     LocalBulkheadBackend,
+    bulkhead,
 )
 
 
@@ -91,14 +93,10 @@ async def test_local_backend_concurrent_acquires_never_exceed_limit() -> None:
     assert max_in_flight == limit
 
 
-from hawkapi.middleware.bulkhead import Bulkhead
-
-
 async def test_bulkhead_context_manager_basic() -> None:
     bh = Bulkhead("x", limit=2)
-    async with bh:
-        async with bh:
-            pass
+    async with bh, bh:
+        pass
     async with bh:
         pass
 
@@ -174,13 +172,8 @@ async def test_bulkhead_concurrent_tasks_share_one_instance() -> None:
 async def test_bulkhead_different_names_dont_share_capacity() -> None:
     bh1 = Bulkhead("a", limit=1, max_wait=0.0)
     bh2 = Bulkhead("b", limit=1, max_wait=0.0)
-    async with bh1:
-        async with bh2:
-            pass
-
-
-from hawkapi.exceptions import HTTPException
-from hawkapi.middleware.bulkhead import bulkhead
+    async with bh1, bh2:
+        pass
 
 
 async def test_bulkhead_decorator_passthrough_when_under_limit() -> None:
@@ -246,10 +239,8 @@ async def test_bulkhead_decorator_preserves_handler_args() -> None:
     assert await handler(1, y=2) == 3
 
 
-prom = pytest.importorskip("prometheus_client")
-
-
 async def test_metrics_disabled_by_default_no_prometheus_attr() -> None:
+    pytest.importorskip("prometheus_client")
     import hawkapi.middleware.bulkhead as bh_mod
 
     bh = Bulkhead("metrics_off", limit=1)
@@ -260,15 +251,12 @@ async def test_metrics_disabled_by_default_no_prometheus_attr() -> None:
 
 
 async def test_metrics_enabled_emits_gauge_and_counter() -> None:
+    pytest.importorskip("prometheus_client")
     bh = Bulkhead("metrics_on", limit=1, max_wait=0.0, metrics=True)
     from prometheus_client import REGISTRY
 
     async with bh:
-        samples = {
-            m.name: m
-            for m in REGISTRY.collect()
-            if m.name.startswith("hawkapi_bulkhead")
-        }
+        samples = {m.name: m for m in REGISTRY.collect() if m.name.startswith("hawkapi_bulkhead")}
         in_flight = next(
             s
             for s in samples["hawkapi_bulkhead_in_flight"].samples
@@ -303,7 +291,6 @@ async def test_metrics_enabled_emits_gauge_and_counter() -> None:
     rejections = [
         s
         for s in samples["hawkapi_bulkhead_rejections_total"].samples
-        if s.labels.get("name") == "metrics_on"
-        and s.labels.get("reason") == "fail_fast"
+        if s.labels.get("name") == "metrics_on" and s.labels.get("reason") == "fail_fast"
     ]
     assert rejections and rejections[0].value >= 1.0
