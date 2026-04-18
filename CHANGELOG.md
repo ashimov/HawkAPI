@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `hawkapi._threading` module: `FREE_THREADED` flag, `maybe_thread_lock()`, and `maybe_async_lock()` helpers for PEP 703-aware locking
 - `build_mypyc.is_enabled()` automatically skips mypyc compilation on free-threaded interpreters
 - Experimental `test-free-threaded` CI job (non-blocking, `continue-on-error: true`)
-- PEP 779 `Typing :: Free-threaded` trove classifier in `pyproject.toml`
+- PEP 779 `Programming Language :: Python :: Free Threading :: 1 - Unstable` trove classifier in `pyproject.toml`
 - User guide: `docs/guide/free-threaded.md`
 
 ## [0.1.2] - 2026-04-05
