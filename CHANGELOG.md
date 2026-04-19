@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `hawkapi doctor <APP_SPEC>` — one-shot health-check CLI that lints a running HawkAPI app against 18 rules across 5 categories (security, observability, performance, correctness, deps). Human and JSON output, `--severity` filter, `--fix` scaffold, exit codes 0/1/2. Target v0.1.4.
+
 ## [0.1.3] - 2026-04-19
 
 ### Added

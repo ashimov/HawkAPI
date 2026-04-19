@@ -1004,6 +1004,11 @@ hawkapi migrate path/to/fastapi_project
 hawkapi migrate path/to/fastapi_project --dry-run       # preview diffs only
 hawkapi migrate path/to/fastapi_project --convert-models # also rewrite Pydantic BaseModel → msgspec.Struct
 hawkapi migrate path/to/fastapi_project --output ./migrated  # write to separate directory
+
+# Health-check a running app (18 rules across 5 categories)
+hawkapi doctor app:app
+hawkapi doctor app:app --format=json
+hawkapi doctor app:app --severity=warn   # only warnings and errors
 ```
 
 `hawkapi init` creates `.env` and `.env.example` files with commented-out HawkAPI configuration templates. Existing files are skipped.
@@ -1011,6 +1016,8 @@ hawkapi migrate path/to/fastapi_project --output ./migrated  # write to separate
 `hawkapi gen-client` generates a zero-dependency client: native `fetch` for TypeScript, msgspec-backed for Python. Source can be a live app (`--app module:attr`) or a saved spec file (`--spec openapi.json`).
 
 `hawkapi migrate` uses AST rewriting (libcst) to replace FastAPI imports, decorators, and patterns with their HawkAPI equivalents. See [docs/guide/migration-from-fastapi.md](docs/guide/migration-from-fastapi.md).
+
+`hawkapi doctor` lints a live app for security misconfigurations, missing observability middleware, performance anti-patterns, and outdated dependencies. Exits 0 (clean), 1 (warnings), or 2 (errors). See [docs/guide/doctor.md](docs/guide/doctor.md).
 
 ---
 

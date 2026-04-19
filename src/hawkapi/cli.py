@@ -149,6 +149,34 @@ def main(argv: list[str] | None = None) -> None:
     _source.add_argument("--spec", help="path to openapi.json")
     p_gen.add_argument("--out", required=True, help="output directory")
 
+    # `hawkapi doctor` subcommand
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Run health checks on a HawkAPI application",
+    )
+    doctor_parser.add_argument(
+        "app",
+        help="Application to check (module:attribute format, e.g. main:app)",
+    )
+    doctor_parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=["human", "json"],
+        default="human",
+        help="Output format (default: human)",
+    )
+    doctor_parser.add_argument(
+        "--severity",
+        choices=["info", "warn", "error"],
+        default="info",
+        help="Minimum severity to report (default: info)",
+    )
+    doctor_parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Apply safe auto-fixes where available (v1: none implemented)",
+    )
+
     # `hawkapi migrate` subcommand
     migrate_parser = subparsers.add_parser(
         "migrate",
@@ -192,10 +220,37 @@ def main(argv: list[str] | None = None) -> None:
         _run_new(args)
     elif args.command == "init":
         _run_init(args)
+    elif args.command == "doctor":
+        sys.exit(_run_doctor(args))
     elif args.command == "migrate":
         _run_migrate(args)
     elif args.command == "gen-client":
         _run_gen_client(args)
+
+
+def _run_doctor(args: argparse.Namespace) -> int:
+    """Run health checks on the given application and return an exit code."""
+    from hawkapi.doctor._formatter import exit_code, format_human, format_json
+    from hawkapi.doctor._runner import load_app, run
+    from hawkapi.doctor._types import Severity
+
+    module_path, attr_name = _parse_ref(args.app)
+    app = load_app(module_path, attr_name)
+
+    _SEV_MAP = {"info": Severity.INFO, "warn": Severity.WARN, "error": Severity.ERROR}
+    min_sev = _SEV_MAP[args.severity]
+
+    if args.fix:
+        print("--fix: no auto-fixable findings in v1.")
+
+    findings = run(app, min_severity=min_sev)
+
+    if args.output_format == "json":
+        print(format_json(findings, args.app))
+    else:
+        print(format_human(findings, args.app))
+
+    return exit_code(findings)
 
 
 def _run_dev(args: argparse.Namespace) -> None:
