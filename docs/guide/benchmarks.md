@@ -3,7 +3,7 @@
 HawkAPI competes head-to-head with the top Python ASGI frameworks on six
 standardised scenarios. Numbers are regenerated automatically every Monday
 and on every release — see the live
-[`benchmarks/competitive/RESULTS.md`](https://github.com/ashimov/Hawk/blob/main/benchmarks/competitive/RESULTS.md).
+[`benchmarks/competitive/RESULTS.md`](https://github.com/ashimov/HawkAPI/blob/main/benchmarks/competitive/RESULTS.md).
 
 ## Methodology
 
@@ -28,7 +28,7 @@ As of 2026-04-17 (first committed snapshot), HawkAPI leads throughput on
 within 11 % on that scenario.
 
 See
-[`benchmarks/competitive/RESULTS.md`](https://github.com/ashimov/Hawk/blob/main/benchmarks/competitive/RESULTS.md)
+[`benchmarks/competitive/RESULTS.md`](https://github.com/ashimov/HawkAPI/blob/main/benchmarks/competitive/RESULTS.md)
 for the full throughput + p99 latency breakdown per run.
 
 ## Reproducing locally

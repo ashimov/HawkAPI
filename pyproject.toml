@@ -77,9 +77,9 @@ build = [
 hawkapi = "hawkapi.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/ashimov/Hawk"
+Homepage = "https://github.com/ashimov/HawkAPI"
 Documentation = "https://hawkapi.ashimov.com"
-Repository = "https://github.com/ashimov/Hawk"
+Repository = "https://github.com/ashimov/HawkAPI"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hawkapi"]

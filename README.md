@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="hawk-logo.png" alt="Hawk" width="400">
+  <img src="hawk-logo.png" alt="HawkAPI" width="400">
 </p>
 
 <p align="center">
@@ -7,11 +7,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ashimov/Hawk/actions"><img src="https://github.com/ashimov/Hawk/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/ashimov/HawkAPI/actions"><img src="https://github.com/ashimov/HawkAPI/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pypi.org/project/hawkapi/"><img src="https://img.shields.io/pypi/v/hawkapi.svg" alt="PyPI"></a>
   <a href="https://pypi.org/project/hawkapi/"><img src="https://img.shields.io/pypi/pyversions/hawkapi.svg" alt="Python"></a>
-  <a href="https://github.com/ashimov/Hawk/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ashimov/Hawk.svg" alt="License"></a>
-  <a href="https://github.com/ashimov/Hawk"><img src="https://img.shields.io/badge/coverage-95%25-brightgreen.svg" alt="Coverage"></a>
+  <a href="https://github.com/ashimov/HawkAPI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ashimov/HawkAPI.svg" alt="License"></a>
+  <a href="https://github.com/ashimov/HawkAPI"><img src="https://img.shields.io/badge/coverage-95%25-brightgreen.svg" alt="Coverage"></a>
   <a href="https://hawkapi.ashimov.com"><img src="https://img.shields.io/badge/docs-hawkapi.ashimov.com-blue.svg" alt="Docs"></a>
   <a href="https://pypi.org/project/hawkapi/"><img src="https://img.shields.io/pypi/dm/hawkapi.svg" alt="Downloads"></a>
   <a href="benchmarks/competitive/RESULTS.md"><img src="https://img.shields.io/badge/benchmarks-5%2F6%20%F0%9F%8F%86-brightgreen.svg" alt="Benchmarks"></a>
@@ -1126,8 +1126,8 @@ python benchmarks/bench_vs_fastapi.py
 ## Development
 
 ```bash
-git clone https://github.com/ashimov/Hawk.git
-cd Hawk
+git clone https://github.com/ashimov/HawkAPI.git
+cd HawkAPI
 pip install -e ".[dev]"
 
 # Run tests (1211 tests)
