@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `hawkapi gen-client` CLI: generates zero-dep TypeScript (`client.ts`) + Python (`client.py`) client SDKs from OpenAPI 3.1 spec; msgspec-backed for Python, native fetch for TS (Tier 3 OpenAPI codegen)
 - `hawkapi migrate` codemod — automated FastAPI → HawkAPI migration via AST rewriting
 - Performance regression gate in CI: committed baseline (`tests/perf/.benchmark_baseline.json`), 5 % mean regression threshold via `pytest-benchmark --benchmark-compare-fail`
 - Memory budget tests using pytest-memray (`tests/perf/`, `memory` mark)

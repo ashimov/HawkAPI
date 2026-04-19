@@ -141,6 +141,14 @@ def main(argv: list[str] | None = None) -> None:
     # `hawkapi init` subcommand
     subparsers.add_parser("init", help="Initialize HawkAPI configuration in the current directory")
 
+    # `hawkapi gen-client` subcommand
+    p_gen = subparsers.add_parser("gen-client", help="Generate a client SDK from OpenAPI")
+    p_gen.add_argument("language", choices=["python", "typescript"])
+    _source = p_gen.add_mutually_exclusive_group(required=True)
+    _source.add_argument("--app", help="module:attr (e.g. myapp.main:app)")
+    _source.add_argument("--spec", help="path to openapi.json")
+    p_gen.add_argument("--out", required=True, help="output directory")
+
     # `hawkapi migrate` subcommand
     migrate_parser = subparsers.add_parser(
         "migrate",
@@ -186,6 +194,8 @@ def main(argv: list[str] | None = None) -> None:
         _run_init(args)
     elif args.command == "migrate":
         _run_migrate(args)
+    elif args.command == "gen-client":
+        _run_gen_client(args)
 
 
 def _run_dev(args: argparse.Namespace) -> None:
@@ -410,6 +420,45 @@ def _run_migrate(args: argparse.Namespace) -> None:
 
     suffix = " (dry-run)" if args.dry_run else ""
     print(f"Migrated {modified} files, {total_warnings} warnings{suffix}")
+
+
+def _run_gen_client(args: argparse.Namespace) -> None:
+    """Generate a Python or TypeScript client SDK from an OpenAPI spec."""
+    import json
+    from pathlib import Path
+
+    from hawkapi.openapi.codegen import (
+        build_client_ir,
+        generate_python_client,
+        generate_typescript_client,
+    )
+
+    # Resolve the OpenAPI spec dict
+    if args.app:
+        module_path, attr_name = _parse_ref(args.app)
+        spec = _load_app_spec(module_path, attr_name)
+    else:
+        try:
+            with open(args.spec, encoding="utf-8") as fh:
+                spec = json.load(fh)
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"Error: could not load spec '{args.spec}': {exc}", file=sys.stderr)
+            sys.exit(1)
+
+    ir = build_client_ir(spec)
+
+    if args.language == "python":
+        source = generate_python_client(ir)
+        filename = "client.py"
+    else:
+        source = generate_typescript_client(ir)
+        filename = "client.ts"
+
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / filename
+    out_path.write_text(source, encoding="utf-8")
+    print(str(out_path.resolve()))
 
 
 if __name__ == "__main__":
