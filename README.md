@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="hawkapi.png" alt="HawkAPI" width="400">
+  <img src="hawk-logo.png" alt="Hawk" width="400">
 </p>
 
 <p align="center">
@@ -7,11 +7,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ashimov/HawkAPI/actions"><img src="https://github.com/ashimov/HawkAPI/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/ashimov/Hawk/actions"><img src="https://github.com/ashimov/Hawk/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://pypi.org/project/hawkapi/"><img src="https://img.shields.io/pypi/v/hawkapi.svg" alt="PyPI"></a>
   <a href="https://pypi.org/project/hawkapi/"><img src="https://img.shields.io/pypi/pyversions/hawkapi.svg" alt="Python"></a>
-  <a href="https://github.com/ashimov/HawkAPI/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ashimov/HawkAPI.svg" alt="License"></a>
-  <a href="https://github.com/ashimov/HawkAPI"><img src="https://img.shields.io/badge/coverage-95%25-brightgreen.svg" alt="Coverage"></a>
+  <a href="https://github.com/ashimov/Hawk/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ashimov/Hawk.svg" alt="License"></a>
+  <a href="https://github.com/ashimov/Hawk"><img src="https://img.shields.io/badge/coverage-95%25-brightgreen.svg" alt="Coverage"></a>
   <a href="https://hawkapi.ashimov.com"><img src="https://img.shields.io/badge/docs-hawkapi.ashimov.com-blue.svg" alt="Docs"></a>
   <a href="https://pypi.org/project/hawkapi/"><img src="https://img.shields.io/pypi/dm/hawkapi.svg" alt="Downloads"></a>
   <a href="benchmarks/competitive/RESULTS.md"><img src="https://img.shields.io/badge/benchmarks-5%2F6%20%F0%9F%8F%86-brightgreen.svg" alt="Benchmarks"></a>
@@ -67,14 +67,17 @@ pip install hawkapi
 With extras:
 
 ```bash
-pip install hawkapi[uvicorn]      # ASGI server
-pip install hawkapi[pydantic]     # Optional Pydantic v2 support
+pip install hawkapi[uvicorn]      # Uvicorn ASGI server
 pip install hawkapi[granian]      # Granian ASGI server
+pip install hawkapi[pydantic]     # Optional Pydantic v2 support
 pip install hawkapi[otel]         # OpenTelemetry tracing
+pip install hawkapi[metrics]      # Prometheus metrics
+pip install hawkapi[logging]      # Structured logging (structlog)
+pip install hawkapi[grpc]         # gRPC support (grpcio + grpcio-reflection)
 pip install hawkapi[all]          # Everything
 ```
 
-**Requirements:** Python 3.12+ and msgspec >= 0.19.0.
+**Requirements:** Python 3.12+ (3.13 fully supported; experimental free-threaded 3.13t wheels are shipped — see [Free-threaded Python](#free-threaded-python-313)) and msgspec >= 0.19.0.
 
 ---
 
@@ -198,6 +201,21 @@ async def list_users(db: Annotated[Connection, Depends(get_db)]):
     return await db.fetch_all("SELECT * FROM users")
 ```
 
+#### Route-level Dependencies
+
+Side-effect dependencies (auth guards, audit writers) that run before the handler — return values are discarded; `HTTPException` short-circuits the request:
+
+```python
+from hawkapi import Depends
+
+async def audit(request): ...
+
+@app.get("/admin", dependencies=[Depends(audit)])
+async def admin(): ...
+```
+
+Router-level is also supported: `Router(dependencies=[Depends(audit)])`.
+
 #### DI Introspection
 
 Inspect the container at runtime or export a Mermaid dependency graph:
@@ -245,6 +263,23 @@ async def get_user(user_id: int):
 ```
 
 Works with both msgspec Structs and Pydantic models.
+
+**Auto-inference from return annotation** — `response_model` is inferred automatically when not set explicitly:
+
+```python
+@app.get("/users/{id}")
+async def get_user(id: int) -> UserOut:  # response_model inferred automatically
+    return await db.get(id)
+```
+
+**Exclusion flags** — strip `None`, unset, or default-value fields from serialized output:
+
+```python
+@app.get("/users/{id}", response_model_exclude_none=True, response_model_exclude_unset=True)
+async def get_user(id: int) -> UserOut: ...
+```
+
+Flags: `response_model_exclude_none`, `response_model_exclude_unset`, `response_model_exclude_defaults`.
 
 ### Pagination
 
@@ -294,6 +329,8 @@ class AuthMiddleware(Middleware):
 | `RedisRateLimitMiddleware` | Redis-backed token bucket rate limiting (distributed) |
 | `RequestLimitsMiddleware` | Max query string / header size enforcement |
 | `CircuitBreakerMiddleware` | Three-state circuit breaker (per-path tracking) |
+| `RedisCircuitBreakerMiddleware` | Distributed circuit breaker (Redis-backed) |
+| `AdaptiveConcurrencyMiddleware` | Adaptive in-flight limit based on latency |
 | `CSRFMiddleware` | Double-submit cookie CSRF protection |
 | `SessionMiddleware` | Signed cookie-based session management |
 | `ErrorHandlerMiddleware` | Structured error handling pipeline |
@@ -303,6 +340,8 @@ class AuthMiddleware(Middleware):
 | `ObservabilityMiddleware` | All-in-one tracing, structured logs, metrics |
 
 Middleware is registered globally via `app.add_middleware()`. Each entry is stored as a `MiddlewareEntry` dataclass holding the middleware class and its kwargs, then compiled into an onion-model pipeline at startup.
+
+See also: [Bulkhead](#bulkhead) — named async concurrency isolator living in `hawkapi.middleware.bulkhead`.
 
 ### Security
 
@@ -332,6 +371,26 @@ app.permission_policy = PermissionPolicy(
 async def admin_panel():
     return {"secret": "data"}
 ```
+
+#### OAuth2 Scopes
+
+Fine-grained scope enforcement with OpenAPI `operation.security` reflection:
+
+```python
+from hawkapi import OAuth2PasswordBearer, Security, SecurityScopes
+
+oauth2 = OAuth2PasswordBearer(
+    tokenUrl="token",
+    scopes={"items:read": "Read items", "items:write": "Write items"},
+)
+
+async def current_user(scopes: SecurityScopes, token: str = Security(oauth2)): ...
+
+@app.get("/items", dependencies=[Security(current_user, scopes=["items:read"])])
+async def read_items(): ...
+```
+
+Route-level scopes are aggregated into the OpenAPI `operation.security` field automatically.
 
 ### Responses
 
@@ -401,6 +460,18 @@ async def admin():
         headers={"WWW-Authenticate": "Bearer"},
     )
 ```
+
+#### Status Constants
+
+Use `hawkapi.status` for named HTTP and WebSocket constants (FastAPI parity):
+
+```python
+from hawkapi import status
+
+raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+```
+
+Both HTTP (`status.HTTP_200_OK`, `status.HTTP_422_UNPROCESSABLE_ENTITY`, …) and WebSocket (`status.WS_1008_POLICY_VIOLATION`, …) constants are available.
 
 ### Custom Exception Handlers
 
@@ -519,6 +590,98 @@ from hawkapi import StaticFiles
 app.mount("/static", StaticFiles(directory="static"))
 app.mount("/site", StaticFiles(directory="public", html=True))
 ```
+
+---
+
+## Advanced Features
+
+### Feature Flags
+
+Runtime feature flags with zero external dependencies. Providers are swappable without restarting the app:
+
+```python
+from hawkapi import HawkAPI, Depends
+from hawkapi.flags import StaticFlagProvider, Flags, get_flags, requires_flag
+
+app = HawkAPI(flags=StaticFlagProvider({"new_checkout": True}))
+
+@app.get("/checkout")
+async def checkout(flags: Flags = Depends(get_flags)) -> dict:
+    if await flags.bool("new_checkout", default=False):
+        return await new_flow()
+    return await old_flow()
+
+@app.get("/beta/reports")
+@requires_flag("beta.reports")
+async def beta_reports() -> dict: ...
+```
+
+Providers: `StaticFlagProvider`, `EnvFlagProvider`, `FileFlagProvider` (JSON/TOML/YAML with mtime hot-reload). Use when you need to gate features per environment or roll out incrementally without a deployment. See [docs/guide/feature-flags.md](docs/guide/feature-flags.md).
+
+### GraphQL
+
+Thin GraphQL-over-HTTP adapter with GraphiQL UI served to browsers. Zero runtime deps on the default path — `graphql-core` and `strawberry` are imported lazily only when the adapter is used:
+
+```python
+from hawkapi.graphql.adapters import from_graphql_core
+from graphql import build_schema
+
+schema = build_schema("type Query { hello: String }")
+app.mount_graphql("/graphql", executor=from_graphql_core(schema))
+```
+
+Adapters: `from_graphql_core`, `from_strawberry`. Use when you need a GraphQL API alongside REST without adding a separate framework. See [docs/guide/graphql.md](docs/guide/graphql.md).
+
+### gRPC
+
+Thin gRPC integration with ASGI lifespan-tied lifecycle — the gRPC server starts and stops with the app:
+
+```python
+from myproto import greeter_pb2_grpc
+
+class Greeter(greeter_pb2_grpc.GreeterServicer):
+    async def SayHello(self, request, context):
+        app = context.hawkapi_app  # access app state
+        ...
+
+app.mount_grpc(
+    Greeter(),
+    add_to_server=greeter_pb2_grpc.add_GreeterServicer_to_server,
+    port=50051,
+    reflection=True,
+    reflection_service_names=["greeter.Greeter"],
+)
+```
+
+Built-in `HawkAPIObservabilityInterceptor` adds structured logs and Prometheus metrics to every RPC. TLS via `ssl_credentials=`. Install: `pip install hawkapi[grpc]`. Use when you need gRPC and HTTP APIs from a single process. See [docs/guide/grpc.md](docs/guide/grpc.md).
+
+### Bulkhead
+
+Named async concurrency isolator — caps simultaneous in-flight requests per named pool to prevent one slow resource from exhausting the entire process:
+
+```python
+from hawkapi.middleware.bulkhead import bulkhead
+
+@app.get("/export")
+@bulkhead("exports", max_concurrent=4)
+async def export(): ...
+```
+
+Context-manager form also supported. Backends: `LocalBulkheadBackend` (default, `asyncio.Semaphore` per name) and `RedisBulkheadBackend` (distributed, hash + lease-TTL). Optional Prometheus metrics. Use when you need hard concurrency caps per operation type. See [docs/guide/bulkhead.md](docs/guide/bulkhead.md).
+
+### Free-threaded Python 3.13
+
+HawkAPI ships experimental `cp313t-cp313t` wheels built via cibuildwheel for the no-GIL CPython 3.13 free-threaded build (PEP 703):
+
+```python
+from hawkapi._threading import FREE_THREADED, maybe_thread_lock, maybe_async_lock
+
+# FREE_THREADED is True only on a no-GIL 3.13t interpreter
+lock = maybe_thread_lock()   # real threading.Lock on 3.13t, no-op elsewhere
+alock = maybe_async_lock()   # real asyncio.Lock on 3.13t, no-op elsewhere
+```
+
+`maybe_thread_lock()` and `maybe_async_lock()` let library code be PEP 703-aware without branching on every call site. Use when running HawkAPI under `python3.13t` for CPU-bound workloads that benefit from true parallelism. See [docs/guide/free-threaded.md](docs/guide/free-threaded.md).
 
 ---
 
@@ -817,13 +980,13 @@ hawkapi dev app:app
 hawkapi dev app:app --host 0.0.0.0 --port 3000
 
 # Detect API breaking changes
-hawkapi diff app:app --base openapi-v1.json
+hawkapi diff old_app:app new_app:app
 
 # Lint OpenAPI spec
 hawkapi check app:app
 
 # Generate API changelog
-hawkapi changelog app:app --base openapi-v1.json
+hawkapi changelog old_app:app new_app:app
 
 # Scaffold a new project
 hawkapi new myproject
@@ -831,9 +994,23 @@ hawkapi new myproject --docker
 
 # Initialize config files in current directory
 hawkapi init
+
+# Generate a TypeScript or Python client SDK from OpenAPI
+hawkapi gen-client --app app:app --lang typescript --out ./client
+hawkapi gen-client --app app:app --lang python --out ./client
+
+# Migrate a FastAPI codebase to HawkAPI (in-place rewrite)
+hawkapi migrate path/to/fastapi_project
+hawkapi migrate path/to/fastapi_project --dry-run       # preview diffs only
+hawkapi migrate path/to/fastapi_project --convert-models # also rewrite Pydantic BaseModel → msgspec.Struct
+hawkapi migrate path/to/fastapi_project --output ./migrated  # write to separate directory
 ```
 
 `hawkapi init` creates `.env` and `.env.example` files with commented-out HawkAPI configuration templates. Existing files are skipped.
+
+`hawkapi gen-client` generates a zero-dependency client: native `fetch` for TypeScript, msgspec-backed for Python. Source can be a live app (`--app module:attr`) or a saved spec file (`--spec openapi.json`).
+
+`hawkapi migrate` uses AST rewriting (libcst) to replace FastAPI imports, decorators, and patterns with their HawkAPI equivalents. See [docs/guide/migration-from-fastapi.md](docs/guide/migration-from-fastapi.md).
 
 ---
 
@@ -905,6 +1082,8 @@ Response headers use `CaseInsensitiveDict` — lookups like `response.headers["c
 
 ## Benchmarks
 
+> **Note:** The numbers below are local dev measurements on Apple M3 Pro. The canonical competitive comparison (Linux CI, head-to-head against FastAPI/Litestar/BlackSheep/Starlette/Sanic) is the table at the top of this README.
+
 Tested on Apple M3 Pro, Python 3.13, msgspec 0.20. ASGI-level benchmarks (no HTTP server overhead — pure framework performance).
 
 ### Request/Response
@@ -947,11 +1126,11 @@ python benchmarks/bench_vs_fastapi.py
 ## Development
 
 ```bash
-git clone https://github.com/ashimov/HawkAPI.git
-cd HawkAPI
+git clone https://github.com/ashimov/Hawk.git
+cd Hawk
 pip install -e ".[dev]"
 
-# Run tests (816 tests)
+# Run tests (1211 tests)
 pytest
 
 # Lint and type check
