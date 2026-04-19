@@ -32,10 +32,10 @@ Legend: ✅ full, ⚠️ partial, ❌ missing.
 
 | FastAPI feature | HawkAPI | Status | Notes |
 |---|---|---|---|
-| `@app.get/post/put/patch/delete/head/options` | [src/hawkapi/routing/router.py](../../src/hawkapi/routing/router.py) | ✅ | |
+| `@app.get/post/put/patch/delete/head/options` | `src/hawkapi/routing/router.py` | ✅ | |
 | `APIRouter` with `prefix=`, `tags=`, `dependencies=` | `Router` class + `include_router` | ⚠️ | `prefix`/`tags` supported; `dependencies=` on routers not wired |
-| Typed path params `{id}` with `int`/`str`/... inference | [routing/_radix_tree.py](../../src/hawkapi/routing/_radix_tree.py) | ✅ | `/items/{id:int}` |
-| Route-level `tags=`, `summary=`, `description=` | [routing/route.py](../../src/hawkapi/routing/route.py) | ✅ | |
+| Typed path params `{id}` with `int`/`str`/... inference | `routing/_radix_tree.py` | ✅ | `/items/{id:int}` |
+| Route-level `tags=`, `summary=`, `description=` | `routing/route.py` | ✅ | |
 | Route-level `response_model=` | Router.add_route | ✅ | |
 | Route-level `status_code=` | Router.add_route | ✅ | |
 | Route-level `include_in_schema=False` | Router.add_route | ✅ | |
@@ -47,37 +47,37 @@ Legend: ✅ full, ⚠️ partial, ❌ missing.
 
 | FastAPI feature | HawkAPI | Status | Notes |
 |---|---|---|---|
-| `Query()` marker (alias, validation) | [validation/constraints.py](../../src/hawkapi/validation/constraints.py) | ✅ | Via `Annotated[T, Query(...)]` |
+| `Query()` marker (alias, validation) | `validation/constraints.py` | ✅ | Via `Annotated[T, Query(...)]` |
 | `Path()` marker | validation/constraints.py | ✅ | |
 | `Header()` marker with `_`→`-` auto-conversion | validation/constraints.py + di/param_plan.py | ✅ | |
 | `Cookie()` marker | validation/constraints.py | ✅ | |
 | `Body()` marker | validation/constraints.py | ✅ | |
 | `Annotated[T, Query(...)]` form | di/param_plan.py | ✅ | First-class |
 | `Form()` marker | — | ⚠️ | Forms are parsed when `FormData` is declared, but no explicit `Form()` class for per-field validation |
-| `File()` / `UploadFile` | [requests/form_data.py](../../src/hawkapi/requests/form_data.py) | ✅ | `.read()`, `.seek()`, `.close()` |
+| `File()` / `UploadFile` | `requests/form_data.py` | ✅ | `.read()`, `.seek()`, `.close()` |
 | Multiple body params in one handler | di/param_plan.py | ✅ | |
 
 ### Dependency injection
 
 | FastAPI feature | HawkAPI | Status | Notes |
 |---|---|---|---|
-| `Depends(callable)` | [src/hawkapi/di/depends.py](../../src/hawkapi/di/depends.py) | ✅ | |
+| `Depends(callable)` | `src/hawkapi/di/depends.py` | ✅ | |
 | Sub-dependencies (transitive) | di/param_plan.py | ✅ | Resolved recursively |
-| `yield` dependencies with teardown after response | [di/resolver.py](../../src/hawkapi/di/resolver.py) `_execute_dep_plan` + [app.py](../../src/hawkapi/app.py) cleanup finalizer | ✅ | Sync + async generators; reverse-order cleanup on success or exception; 6 tests in `test_generator_deps.py` |
+| `yield` dependencies with teardown after response | `di/resolver.py` `_execute_dep_plan` + `app.py` cleanup finalizer | ✅ | Sync + async generators; reverse-order cleanup on success or exception; 6 tests in `test_generator_deps.py` |
 | Class-callable as dependency | di/param_plan.py | ✅ | |
 | Path-operation-level `dependencies=[...]` | Router + route decorators (commit `14a7a28`) | ✅ | Shipped in Gap #2 |
 | Global (app-level) dependencies | — | ⚠️ | Available as `Router(dependencies=[...])` subclass pattern; no `HawkAPI(dependencies=[...])` kwarg yet |
 | Within-request caching of same `Depends(fn)` | di/scope.py | ✅ | Scope-level caching |
-| `dependency_overrides` for tests | [testing/overrides.py](../../src/hawkapi/testing/overrides.py) | ✅ | `override()` context manager |
+| `dependency_overrides` for tests | `testing/overrides.py` | ✅ | `override()` context manager |
 
 ### Security
 
 | FastAPI feature | HawkAPI | Status | Notes |
 |---|---|---|---|
-| `OAuth2PasswordBearer` | [security/oauth2.py](../../src/hawkapi/security/oauth2.py) | ✅ | |
+| `OAuth2PasswordBearer` | `security/oauth2.py` | ✅ | |
 | `OAuth2PasswordRequestForm` | — | ❌ | Form helper class not shipped |
-| `HTTPBasic` / `HTTPBasicCredentials` | [security/http_basic.py](../../src/hawkapi/security/http_basic.py) | ✅ | |
-| `APIKeyHeader` / `APIKeyQuery` / `APIKeyCookie` | [security/api_key.py](../../src/hawkapi/security/api_key.py) | ✅ | |
+| `HTTPBasic` / `HTTPBasicCredentials` | `security/http_basic.py` | ✅ | |
+| `APIKeyHeader` / `APIKeyQuery` / `APIKeyCookie` | `security/api_key.py` | ✅ | |
 | OAuth2 scopes enforcement + OpenAPI reflection | security/oauth2.py | ❌ | `scopes` placeholder present but not enforced (**Gap #4**) |
 | `SecurityScheme` propagation into OpenAPI | security/base.py | ✅ | |
 
@@ -88,15 +88,15 @@ Legend: ✅ full, ⚠️ partial, ❌ missing.
 | `JSONResponse` | responses/json_response.py | ✅ | |
 | `HTMLResponse`, `PlainTextResponse`, `RedirectResponse`, `FileResponse`, `StreamingResponse` | `src/hawkapi/responses/` | ✅ | |
 | Return `Response` directly from handler (bypass serialization) | responses/response.py | ✅ | |
-| `response_model_exclude_none/unset/defaults` | [serialization/filters.py](../../src/hawkapi/serialization/filters.py) (commit `10b3655`) | ✅ | Shipped in Gap #3; recursive over msgspec + Pydantic |
-| `jsonable_encoder` equivalent | [serialization/encoder.py](../../src/hawkapi/serialization/encoder.py) | ✅ | `encode_response()` |
+| `response_model_exclude_none/unset/defaults` | `serialization/filters.py` (commit `10b3655`) | ✅ | Shipped in Gap #3; recursive over msgspec + Pydantic |
+| `jsonable_encoder` equivalent | `serialization/encoder.py` | ✅ | `encode_response()` |
 | Content negotiation (Accept → JSON vs MessagePack) | serialization/negotiation.py | ✅ | Exceeds FastAPI |
 
 ### Exception handling
 
 | FastAPI feature | HawkAPI | Status | Notes |
 |---|---|---|---|
-| `HTTPException(status_code, detail, headers)` | [exceptions.py](../../src/hawkapi/exceptions.py) | ✅ | Returns RFC 7807 `application/problem+json` |
+| `HTTPException(status_code, detail, headers)` | `exceptions.py` | ✅ | Returns RFC 7807 `application/problem+json` |
 | `@app.exception_handler(Cls)` registration | app.py | ✅ | |
 | Default `RequestValidationError` handler | validation/errors.py | ✅ | RFC 9457 `ProblemDetail` |
 
@@ -134,7 +134,7 @@ Legend: ✅ full, ⚠️ partial, ❌ missing.
 
 | FastAPI feature | HawkAPI | Status | Notes |
 |---|---|---|---|
-| `BackgroundTasks` injection + `add_task()` | [background.py](../../src/hawkapi/background.py) | ✅ | |
+| `BackgroundTasks` injection + `add_task()` | `background.py` | ✅ | |
 | Tasks run after response sent | app.py | ✅ | |
 | Longer-running job primitive beyond per-request tasks | — | ❌ | No built-in scheduler / worker (also not in FastAPI) |
 
@@ -164,7 +164,7 @@ Legend: ✅ full, ⚠️ partial, ❌ missing.
 
 | FastAPI feature | HawkAPI | Status | Notes |
 |---|---|---|---|
-| `from fastapi import status` → `status.HTTP_201_CREATED` | [status.py](../../src/hawkapi/status.py) (commit `de14afc`) | ✅ | Shipped in Gap #5; Starlette-compatible names |
+| `from fastapi import status` → `status.HTTP_201_CREATED` | `status.py` (commit `de14afc`) | ✅ | Shipped in Gap #5; Starlette-compatible names |
 | CORS middleware | middleware/cors.py | ✅ | |
 | GZip middleware | middleware/gzip.py | ✅ | |
 | Session (signed cookies) middleware | middleware/session.py | ✅ | |
@@ -180,10 +180,10 @@ Legend: ✅ full, ⚠️ partial, ❌ missing.
 
 | Gap | Outcome | Commit / file |
 |---|---|---|
-| #1 Yield-dependencies | Confirmed always shipped; re-verification found full sync + async generator support, reverse-order teardown, cleanup-on-error, multi-gen ordering | [di/resolver.py:_execute_dep_plan](../../src/hawkapi/di/resolver.py) + [app.py](../../src/hawkapi/app.py) finally block + `tests/unit/test_generator_deps.py` (6 tests) |
+| #1 Yield-dependencies | Confirmed always shipped; re-verification found full sync + async generator support, reverse-order teardown, cleanup-on-error, multi-gen ordering | `di/resolver.py:_execute_dep_plan` + `app.py` finally block + `tests/unit/test_generator_deps.py` (6 tests) |
 | #2 Route / router `dependencies=[...]` | Shipped | commit `14a7a28`, `tests/unit/test_route_dependencies.py` |
-| #3 `response_model_exclude_*` flags | Shipped (msgspec + Pydantic + nested recursion) | commit `10b3655`, [serialization/filters.py](../../src/hawkapi/serialization/filters.py), `tests/unit/test_response_model_exclude.py` |
-| #5 `hawkapi.status` constants | Shipped (Starlette-compat naming; `http.HTTPStatus`-derived) | commit `de14afc`, [status.py](../../src/hawkapi/status.py), `tests/unit/test_status.py` |
+| #3 `response_model_exclude_*` flags | Shipped (msgspec + Pydantic + nested recursion) | commit `10b3655`, `serialization/filters.py`, `tests/unit/test_response_model_exclude.py` |
+| #5 `hawkapi.status` constants | Shipped (Starlette-compat naming; `http.HTTPStatus`-derived) | commit `de14afc`, `status.py`, `tests/unit/test_status.py` |
 
 ---
 

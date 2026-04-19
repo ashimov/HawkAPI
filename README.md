@@ -14,6 +14,7 @@
   <a href="https://github.com/ashimov/HawkAPI"><img src="https://img.shields.io/badge/coverage-95%25-brightgreen.svg" alt="Coverage"></a>
   <a href="https://hawkapi.ashimov.com"><img src="https://img.shields.io/badge/docs-hawkapi.ashimov.com-blue.svg" alt="Docs"></a>
   <a href="https://pypi.org/project/hawkapi/"><img src="https://img.shields.io/pypi/dm/hawkapi.svg" alt="Downloads"></a>
+  <a href="benchmarks/competitive/RESULTS.md"><img src="https://img.shields.io/badge/benchmarks-5%2F6%20%F0%9F%8F%86-brightgreen.svg" alt="Benchmarks"></a>
 </p>
 
 ---
@@ -33,6 +34,27 @@ async def hello():
 ```bash
 hawkapi dev app:app
 ```
+
+---
+
+## Performance
+
+HawkAPI leads **5 of 6** head-to-head scenarios against the top Python web frameworks
+(measured 2026-04-17, full breakdown in [benchmarks/competitive/RESULTS.md](benchmarks/competitive/RESULTS.md)):
+
+| Scenario | HawkAPI | FastAPI | Litestar | BlackSheep | Starlette | Sanic |
+|---|--:|--:|--:|--:|--:|--:|
+| `body_validation` | **82,202** 🏆 | 23,628 | 31,290 | 46,418 | 49,247 | 34,978 |
+| `json` | **126,820** 🏆 | 44,852 | 55,507 | 125,503 | 92,766 | 51,110 |
+| `path_param` | **144,704** 🏆 | 33,436 | 49,928 | 114,354 | 84,670 | 51,258 |
+| `plaintext` | 148,103 | 44,276 | 56,580 | **165,151** 🏆 | 106,698 | 55,624 |
+| `query_params` | **90,221** 🏆 | 25,710 | 48,828 | 74,526 | 63,832 | 42,798 |
+| `routing_stress` | **134,356** 🏆 | 17,123 | 56,085 | 121,214 | 27,397 | 42,801 |
+
+Requests/second on a shared `ubuntu-latest` runner with Granian (1 worker, ASGI),
+wrk 4 threads × 64 connections × 10 seconds. Fresh numbers auto-regenerate every
+Monday via the [Competitive benchmarks workflow](.github/workflows/benchmark.yml).
+Reproduction: [benchmarks/competitive/README.md](benchmarks/competitive/README.md).
 
 ---
 
