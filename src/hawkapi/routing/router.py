@@ -20,6 +20,53 @@ from hawkapi.routing._radix_tree import RadixTree
 from hawkapi.routing.route import Route
 
 
+def _infer_response_model(handler: Any) -> type[Any] | None:
+    """Return the handler's return annotation as a ``response_model``, or None.
+
+    Inclusion rules (see ``docs/plans/2026-04-18-tier3-typed-routes-design.md``):
+    structured types only — msgspec Structs, Pydantic models, parameterized
+    generics, unions with None. Primitives, bare containers, ``Response``
+    subclasses, ``None`` / ``Any`` / absent annotation all fall through.
+    """
+    from typing import Any as _Any  # noqa: PLC0415
+    from typing import get_type_hints  # noqa: PLC0415
+
+    try:
+        hints = get_type_hints(handler, include_extras=False)
+    except Exception:
+        return None
+    ret = hints.get("return", None)
+    if ret is None or ret is type(None) or ret is _Any:
+        return None
+    # HawkAPI's response classes don't share a single base; enumerate them.
+    from hawkapi.responses import (  # noqa: PLC0415
+        FileResponse,
+        HTMLResponse,
+        JSONResponse,
+        PlainTextResponse,
+        RedirectResponse,
+        StreamingResponse,
+    )
+    from hawkapi.responses.response import Response  # noqa: PLC0415
+
+    _response_classes = (
+        Response,
+        JSONResponse,
+        HTMLResponse,
+        PlainTextResponse,
+        RedirectResponse,
+        FileResponse,
+        StreamingResponse,
+    )
+    if isinstance(ret, type) and any(issubclass(ret, c) for c in _response_classes):
+        return None
+    if ret in (str, int, float, bool, bytes):
+        return None
+    if ret in (dict, list, tuple, set, frozenset):
+        return None
+    return ret
+
+
 class Router:
     """Collects routes and mounts into the application."""
 
@@ -81,6 +128,11 @@ class Router:
         path_param_names = extract_path_param_names(full_path)
         container = getattr(self, "container", None)
         plan = build_handler_plan(handler, container=container, path_params=path_param_names)
+
+        # Auto-infer response_model from the handler's return annotation when
+        # the caller did not pass one explicitly.
+        if response_model is None:
+            response_model = _infer_response_model(handler)
 
         # Router-level deps run before route-level deps.
         merged_deps = self._dependencies + (tuple(dependencies) if dependencies else ())
