@@ -1,4 +1,11 @@
-"""GraphiQL HTML template served for browser requests."""
+"""GraphiQL HTML template served for browser requests.
+
+All CDN assets are pinned to exact versions and protected by Subresource
+Integrity (SRI) hashes so a compromised CDN cannot inject arbitrary JS into
+the developer's browser. Regenerate the hashes with::
+
+    curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A
+"""
 
 from __future__ import annotations
 
@@ -13,21 +20,26 @@ GRAPHIQL_HTML = """<!DOCTYPE html>
     #graphiql { height: 100vh; }
   </style>
   <link rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/graphiql@3/graphiql.min.css" />
+    href="https://cdn.jsdelivr.net/npm/graphiql@3.0.9/graphiql.min.css"
+    integrity="sha384-yz3/sqpuplkA7msMo0FE4ekg0xdwdvZ8JX9MVZREsxipqjU4h8IRfmAMRcb1QpUy"
+    crossorigin="anonymous" />
 </head>
 <body>
   <div id="graphiql">Loading&hellip;</div>
   <script
-    crossorigin
-    src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"
+    src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"
+    integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z"
+    crossorigin="anonymous"
   ></script>
   <script
-    crossorigin
-    src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"
+    src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"
+    integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1"
+    crossorigin="anonymous"
   ></script>
   <script
-    crossorigin
-    src="https://cdn.jsdelivr.net/npm/graphiql@3/graphiql.min.js"
+    src="https://cdn.jsdelivr.net/npm/graphiql@3.0.9/graphiql.min.js"
+    integrity="sha384-Mjte+vxCWz1ZYCzszGHiJqJa5eAxiqI4mc3BErq7eDXnt+UGLXSEW7+i0wmfPiji"
+    crossorigin="anonymous"
   ></script>
   <script>
     const root = ReactDOM.createRoot(document.getElementById('graphiql'));

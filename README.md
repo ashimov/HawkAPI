@@ -357,6 +357,15 @@ async def protected(credentials=Depends(auth)):
 
 Built-in schemes: `HTTPBearer`, `HTTPBasic`, `APIKeyHeader`, `APIKeyQuery`, `APIKeyCookie`, `OAuth2PasswordBearer`.
 
+> **Comparing credentials safely.** `HTTPBasic` / `HTTPBearer` only *extract* credentials; comparison against your stored secret is your responsibility. Always use a constant-time helper to avoid timing attacks:
+>
+> ```python
+> import secrets
+>
+> if not secrets.compare_digest(creds.password, stored_hash):
+>     raise HTTPException(401, detail="Invalid credentials")
+> ```
+
 #### Declarative Permissions (RBAC)
 
 ```python

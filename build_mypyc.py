@@ -33,6 +33,16 @@ if TYPE_CHECKING:
 # subclassing at runtime, so compiling these would break the public API.
 # Compiling the radix tree, route record, param converters and middleware
 # pipeline still captures the dominant request-routing hot path.
+#
+# MSVC RESERVED IDENTIFIERS — when adding attributes to compiled classes,
+# avoid any name that starts with ``__is_`` or ``__has_`` and matches a C++11
+# type-trait keyword. mypyc transpiles ``_private`` attribute names to
+# ``__private`` in generated C, and MSVC interprets tokens like ``__is_trivial``,
+# ``__is_class``, ``__is_base_of``, ``__is_constructible``,
+# ``__has_trivial_destructor``, ``__has_virtual_destructor`` as built-in
+# compiler intrinsics — resulting in ``error C4233: nonstandard extension
+# used`` on Windows wheel builds. Prefer ``_trivial`` / ``_class`` /
+# ``_base_of`` / ``_constructible`` over the ``is_``/``has_`` prefix form.
 HOT_MODULES: tuple[str, ...] = (
     "src/hawkapi/routing/_radix_tree.py",
     "src/hawkapi/routing/route.py",

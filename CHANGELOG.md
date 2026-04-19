@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-04-19
+
+### Fixed
+
+- **[HIGH] Double-execution of handler on `StreamingResponse`.** Routes whose handler returns a `StreamingResponse` / `FileResponse` were classified as trivial by the Wave 3 fast path, and a late fallback to `_execute_route` re-ran the handler — doubling any side effects (DB writes, emails, billing). `_compute_trivial` now inspects the handler's return annotation and excludes streaming returns at registration time; the fast path dispatches streaming responses in-place as a defensive guard.
+- **[MEDIUM] Path-param coercion missing on the trivial fast path.** `{id:int}`-style typed path params were passed as raw `str` to the handler, breaking the declared type contract. The fast path now calls `_coerce_fast` on path values (same behaviour as the general path).
+- **[MEDIUM] GraphiQL CDN assets now use pinned versions + Subresource Integrity (SRI) hashes.** Default `app.mount_graphql(...)` ships with `graphiql=True`; the embedded HTML loaded React/GraphiQL from `cdn.jsdelivr.net` with the `@3` / `@18` floating tags and without `integrity=` attributes — a supply-chain vector. All four assets are now pinned to exact versions (`graphiql@3.0.9`, `react@18.3.1`, `react-dom@18.3.1`) with `sha384` SRI hashes.
+- **[LOW] `FileFlagProvider` cache/mtime update order.** Under free-threaded CPython or thread-pool workers, writing `_mtime` before `_cache` could let a concurrent reader observe the new mtime, skip the reload, and return the stale cache. Cache is now written first, mtime last.
+- **[LOW] Lazy imports inside `_execute_trivial_route` hoisted out of the hot path.** `ParamSource` and `_coerce_fast` are now imported at module scope in `app.py` — a small but per-request saving on every trivial dispatch.
+
+### Added
+
+- `hawkapi doctor --offline` — skip rules that require network access (e.g. DOC050's PyPI version check). Rules opt in via `requires_network: bool = True`.
+- README `Security` section note: always use `secrets.compare_digest` to compare credentials returned by `HTTPBasic` / `HTTPBearer` to avoid timing attacks.
+
+### Changed
+
+- `build_mypyc.py` documents the MSVC reserved-identifier trap (`__is_trivial`, `__is_class`, `__is_base_of`, `__has_trivial_destructor`, …) so future additions to `HOT_MODULES` avoid `_is_*` / `_has_*` private attribute names that collide with C++11 type-trait keywords on Windows.
+- `[tool.ruff] extend-exclude` and `[tool.ruff.lint.per-file-ignores]` extended so local venvs, build artefacts, and non-library code (`benchmarks/**`, `examples/**`, `hatch_build.py`) no longer block lint.
+
 ## [0.1.4] - 2026-04-19
 
 ### Added

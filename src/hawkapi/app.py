@@ -14,7 +14,12 @@ from hawkapi._health import setup_health_routes
 from hawkapi._types import ASGIApp, Receive, Scope, Send
 from hawkapi.background import BackgroundTasks
 from hawkapi.di.container import Container
-from hawkapi.di.resolver import resolve_dependencies, resolve_from_plan
+from hawkapi.di.param_plan import ParamSource
+from hawkapi.di.resolver import (
+    _coerce_fast,  # pyright: ignore[reportPrivateUsage]
+    resolve_dependencies,
+    resolve_from_plan,
+)
 from hawkapi.di.scope import Scope as DIScope
 from hawkapi.exceptions import HTTPException
 from hawkapi.lifespan.hooks import HookRegistry
@@ -573,11 +578,6 @@ class HawkAPI(Router):
         # IMPLICIT_PATH/IMPLICIT_QUERY/PATH params, no DI, no body, no cleanup.
         # Coercion (e.g. int query params) can raise RequestValidationError,
         # so the entire kwargs-build + handler call is inside the try block.
-        from hawkapi.di.param_plan import ParamSource  # noqa: PLC0415
-        from hawkapi.di.resolver import (
-            _coerce_fast,  # noqa: PLC0415  # pyright: ignore[reportPrivateUsage]
-        )
-
         try:
             kwargs: dict[str, Any] = {}
             if plan is not None:
@@ -586,11 +586,16 @@ class HawkAPI(Router):
                     if src is ParamSource.REQUEST:
                         kwargs[spec.name] = request
                     elif src is ParamSource.PATH or src is ParamSource.IMPLICIT_PATH:
-                        value = request.path_params.get(spec.alias or spec.name)
-                        if value is None and spec.has_marker_default:
+                        raw = request.path_params.get(spec.alias or spec.name)
+                        if raw is not None and spec.coerce_type is not None:
+                            # path_params values are always str — coerce to the
+                            # handler's declared type (int / uuid / float / …).
+                            kwargs[spec.name] = _coerce_fast(str(raw), spec.coerce_type)
+                        elif raw is None and spec.has_marker_default:
                             mdf = spec.marker_default_factory
-                            value = mdf() if mdf is not None else spec.marker_default
-                        kwargs[spec.name] = value
+                            kwargs[spec.name] = mdf() if mdf is not None else spec.marker_default
+                        else:
+                            kwargs[spec.name] = raw
                     elif src is ParamSource.QUERY or src is ParamSource.IMPLICIT_QUERY:
                         qval = request.query_params.get(spec.alias or spec.name)
                         if qval is not None:
@@ -633,10 +638,13 @@ class HawkAPI(Router):
             response = await self._handle_exception(request, exc)
 
         # Minimal HEAD handling: zero out the body but keep content-length.
-        # StreamingResponse is not a Response subclass — fall back to the
-        # general path if somehow one slips through (guards _trivial calc).
+        # StreamingResponse-returning handlers are excluded at registration
+        # time by ``_compute_trivial`` so they never reach this path — if one
+        # somehow does (subclassing edge case), dispatch it as-is rather than
+        # re-running the handler via the general path (which would double
+        # any side effects).
         if isinstance(response, StreamingResponse):
-            await self._execute_route(scope, receive, send, route, plan, request)
+            await response(scope, receive, send)
             return
 
         if scope["method"] == "HEAD" and hasattr(response, "body"):

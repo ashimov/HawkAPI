@@ -180,6 +180,12 @@ class FileFlagProvider:
                 f"Unsupported flag file extension {ext!r}. Use .json, .toml, .yaml, or .yml."
             )
 
+        # Order matters under concurrent reads (free-threaded CPython or
+        # thread-pool workers): if we updated _mtime first, another thread
+        # could see the new mtime, skip the reload, and read the stale
+        # _cache. Assigning _cache first and _mtime last means readers that
+        # observe the new mtime always observe the new cache too. Both
+        # assignments are atomic at the Python level.
         self._cache = data if isinstance(data, dict) else {}
         self._mtime = current_mtime
 

@@ -31,6 +31,8 @@ class _DOC050:
     severity: Severity = Severity.INFO
     title: str = "HawkAPI version older than latest published on PyPI"
     docs_url: str = docs_url("DOC050")
+    # Flag consumed by ``hawkapi doctor --offline`` to skip rules that phone home.
+    requires_network: bool = True
 
     def check(self, app: HawkAPI) -> list[Finding]:
         import hawkapi

@@ -182,6 +182,11 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="Apply safe auto-fixes where available (v1: none implemented)",
     )
+    doctor_parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Skip rules that require network access (e.g. DOC050 PyPI version check)",
+    )
 
     # `hawkapi migrate` subcommand
     migrate_parser = subparsers.add_parser(
@@ -249,7 +254,14 @@ def _run_doctor(args: argparse.Namespace) -> int:
     if args.fix:
         print("--fix: no auto-fixable findings in v1.")
 
-    findings = run(app, min_severity=min_sev)
+    rules: list[Any] | None = None
+    if args.offline:
+        from hawkapi.doctor.rules import ALL_RULES  # noqa: PLC0415
+
+        # Drop rules tagged as requiring network access (e.g. DOC050 queries PyPI).
+        rules = [r for r in ALL_RULES if not getattr(r, "requires_network", False)]
+
+    findings = run(app, rules=rules, min_severity=min_sev)
 
     if args.output_format == "json":
         print(format_json(findings, args.app))

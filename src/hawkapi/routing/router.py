@@ -33,6 +33,35 @@ _TRIVIAL_PARAM_SOURCES = frozenset(
 )
 
 
+def _handler_returns_streaming(handler: Any) -> bool:
+    """True when the handler's return annotation is StreamingResponse/FileResponse.
+
+    Such handlers must not take the trivial fast path: the dispatcher can only
+    know the response is streaming *after* the handler has been called, and any
+    fallback that re-runs the handler would double its side effects.
+    """
+    from typing import Any as _Any  # noqa: PLC0415
+    from typing import get_type_hints  # noqa: PLC0415
+
+    localns: dict[str, object] | None = None
+    closure = getattr(handler, "__closure__", None)
+    freevars = getattr(getattr(handler, "__code__", None), "co_freevars", ())
+    if closure and freevars:
+        localns = {name: cell.cell_contents for name, cell in zip(freevars, closure, strict=False)}
+    try:
+        hints = get_type_hints(handler, localns=localns, include_extras=False)
+    except Exception:
+        return False
+    ret = hints.get("return", None)
+    if ret is None or ret is type(None) or ret is _Any:
+        return False
+    if not isinstance(ret, type):
+        return False
+    from hawkapi.responses import FileResponse, StreamingResponse  # noqa: PLC0415
+
+    return issubclass(ret, (StreamingResponse, FileResponse))
+
+
 def _compute_trivial(
     plan: Any,
     response_model: type[Any] | None,
@@ -40,6 +69,7 @@ def _compute_trivial(
     dependencies: tuple[Any, ...],
     deprecated: bool,
     middleware: Any,
+    handler: Any = None,
     response_model_exclude_none: bool = False,
     response_model_exclude_unset: bool = False,
     response_model_exclude_defaults: bool = False,
@@ -87,6 +117,11 @@ def _compute_trivial(
     if deprecated:
         return False
     if middleware:
+        return False
+    # Handlers returning StreamingResponse/FileResponse cannot use the fast path —
+    # the response is only known *after* the handler runs, and re-dispatching
+    # would double any side effects performed inside the handler body.
+    if handler is not None and _handler_returns_streaming(handler):
         return False
     # Verify every param can be resolved by the trivial path
     return all(spec.source in _TRIVIAL_PARAM_SOURCES for spec in plan.params)
@@ -250,6 +285,7 @@ class Router:
                 dep_plans,
                 deprecated,
                 mw_tuple,
+                handler=handler,
                 response_model_exclude_none=response_model_exclude_none,
                 response_model_exclude_unset=response_model_exclude_unset,
                 response_model_exclude_defaults=response_model_exclude_defaults,
@@ -612,6 +648,7 @@ class Router:
                     merged_deps,
                     route.deprecated,
                     route.middleware,
+                    handler=route.handler,
                     response_model_exclude_none=route.response_model_exclude_none,
                     response_model_exclude_unset=route.response_model_exclude_unset,
                     response_model_exclude_defaults=route.response_model_exclude_defaults,
