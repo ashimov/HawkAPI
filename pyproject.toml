@@ -124,3 +124,8 @@ exclude_lines = [
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
+
+[dependency-groups]
+dev = [
+    "pydantic>=2.12.5",
+]

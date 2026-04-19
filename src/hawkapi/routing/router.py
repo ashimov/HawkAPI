@@ -31,8 +31,16 @@ def _infer_response_model(handler: Any) -> type[Any] | None:
     from typing import Any as _Any  # noqa: PLC0415
     from typing import get_type_hints  # noqa: PLC0415
 
+    # Build localns from the handler's closure so `from __future__ import
+    # annotations` still resolves nested types (tests often define models
+    # inside a test function and rely on closure capture).
+    localns: dict[str, object] | None = None
+    closure = getattr(handler, "__closure__", None)
+    freevars = getattr(getattr(handler, "__code__", None), "co_freevars", ())
+    if closure and freevars:
+        localns = {name: cell.cell_contents for name, cell in zip(freevars, closure, strict=False)}
     try:
-        hints = get_type_hints(handler, include_extras=False)
+        hints = get_type_hints(handler, localns=localns, include_extras=False)
     except Exception:
         return None
     ret = hints.get("return", None)

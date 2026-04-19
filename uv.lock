@@ -523,7 +523,7 @@ wheels = [
 
 [[package]]
 name = "hawkapi"
-version = "0.1.2"
+version = "0.1.3"
 source = { editable = "." }
 dependencies = [
     { name = "msgspec" },
@@ -604,6 +604,11 @@ uvloop = [
     { name = "uvloop" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pydantic" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "blacksheep", marker = "extra == 'bench'", specifier = ">=2.0" },
@@ -644,6 +649,9 @@ requires-dist = [
     { name = "uvloop", marker = "extra == 'uvloop'", specifier = ">=0.21" },
 ]
 provides-extras = ["pydantic", "granian", "uvloop", "uvicorn", "otel", "metrics", "logging", "redis", "grpc", "all", "dev", "docs", "bench", "build"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pydantic", specifier = ">=2.12.5" }]
 
 [[package]]
 name = "hpack"
