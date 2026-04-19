@@ -53,6 +53,7 @@ nav:
       - Client codegen: guide/client-codegen.md
       - Feature flags: guide/feature-flags.md
       - GraphQL: guide/graphql.md
+      - gRPC: guide/grpc.md
       - Bulkhead: guide/bulkhead.md
       - Free-threaded Python (PEP 703): guide/free-threaded.md
       - Migration from FastAPI: guide/migration-from-fastapi.md

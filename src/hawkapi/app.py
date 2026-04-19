@@ -254,6 +254,92 @@ class HawkAPI(Router):
             name=f"graphql:{path}",
         )
 
+    def mount_grpc(
+        self,
+        servicer: object,
+        *,
+        add_to_server: Callable[[object, Any], None],
+        port: int = 50051,
+        host: str = "[::]",
+        interceptors: Any = (),
+        observability: bool = True,
+        reflection: bool = False,
+        reflection_service_names: Any = None,
+        ssl_credentials: Any = None,
+        autostart: bool = True,
+        max_workers: int | None = None,
+        options: Any = (),
+    ) -> Any:
+        """Mount a gRPC servicer and tie its lifecycle to ASGI lifespan.
+
+        Args:
+            servicer: The servicer object (from ``*_pb2_grpc.py``).
+            add_to_server: The generated ``add_XxxServicer_to_server`` function.
+            port: TCP port to listen on (default 50051).
+            host: Bind address (default ``"[::]"`` = all interfaces).
+            interceptors: Additional ``grpc.aio.ServerInterceptor`` instances.
+            observability: Install the built-in ``HawkAPIObservabilityInterceptor``
+                first (default True).
+            reflection: Enable gRPC server reflection (requires ``grpcio-reflection``
+                and ``reflection_service_names``).
+            reflection_service_names: Fully-qualified service names for reflection.
+            ssl_credentials: ``grpc.ServerCredentials`` for TLS; ``None`` = insecure.
+            autostart: Start automatically on ASGI lifespan startup (default True).
+            max_workers: Reserved for future thread-pool use; currently unused.
+            options: Extra ``(key, value)`` channel options for ``grpc.aio.server()``.
+
+        Returns:
+            A ``GrpcMount`` with ``.server``, ``.port``, ``.start()``, ``.stop(grace)``.
+        """
+        from hawkapi.grpc._interceptor import HawkAPIObservabilityInterceptor  # noqa: PLC0415
+        from hawkapi.grpc._mount import GrpcMount  # noqa: PLC0415
+
+        # Initialise mount registry on first call and install lifespan hooks once
+        if not hasattr(self, "_grpc_mounts"):
+            self._grpc_mounts: list[Any] = []
+            self._grpc_ports: dict[int, Any] = {}
+            self._hooks.on_startup(self._start_grpc_mounts)
+            self._hooks.on_shutdown(self._stop_grpc_mounts)
+
+        # Build interceptor list — observability interceptor goes first
+        all_interceptors: list[Any] = []
+        if observability:
+            all_interceptors.append(HawkAPIObservabilityInterceptor(self))
+        all_interceptors.extend(interceptors)
+
+        # Same port → reuse existing mount; different port → new mount
+        if port in self._grpc_ports:
+            mount: Any = self._grpc_ports[port]
+            mount._add_servicer(servicer, add_to_server)
+        else:
+            mount = GrpcMount(
+                port=port,
+                host=host,
+                interceptors=all_interceptors,
+                ssl_credentials=ssl_credentials,
+                reflection=reflection,
+                reflection_service_names=reflection_service_names,
+                options=options,
+                max_workers=max_workers,
+            )
+            mount._autostart = autostart
+            mount._add_servicer(servicer, add_to_server)
+            self._grpc_mounts.append(mount)
+            self._grpc_ports[port] = mount
+
+        return mount
+
+    async def _start_grpc_mounts(self) -> None:
+        """ASGI startup hook: start all autostart gRPC mounts."""
+        for mount in getattr(self, "_grpc_mounts", []):
+            if getattr(mount, "_autostart", True):
+                await mount._start()
+
+    async def _stop_grpc_mounts(self) -> None:
+        """ASGI shutdown hook: stop all gRPC mounts."""
+        for mount in getattr(self, "_grpc_mounts", []):
+            await mount._stop()
+
     def readiness_check(self, name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Register a readiness check (decorator).
 

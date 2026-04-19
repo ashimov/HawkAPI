@@ -39,7 +39,8 @@ otel = ["opentelemetry-api>=1.20", "opentelemetry-sdk>=1.20"]
 metrics = ["prometheus-client>=0.20"]
 logging = ["structlog>=24.0"]
 redis = ["redis>=5.0"]
-all = ["hawkapi[pydantic,granian,uvloop,uvicorn,otel,metrics,logging,redis]"]
+grpc = ["grpcio>=1.60", "grpcio-reflection>=1.60"]
+all = ["hawkapi[pydantic,granian,uvloop,uvicorn,otel,metrics,logging,redis,grpc]"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
@@ -51,6 +52,9 @@ dev = [
     "pyright>=1.1",
     "libcst>=1.0",
     "fakeredis[lua]>=2.0",
+    "grpcio>=1.60",
+    "grpcio-reflection>=1.60",
+    "protobuf>=4.0",
 ]
 docs = [
     "mkdocs-material>=9.0",

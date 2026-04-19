@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         requires_flag,
     )
     from hawkapi.graphql import GraphQLExecutor
+    from hawkapi.grpc import GrpcMount, HawkAPIObservabilityInterceptor
     from hawkapi.middleware import Middleware
     from hawkapi.middleware.adaptive_concurrency import AdaptiveConcurrencyMiddleware
     from hawkapi.middleware.circuit_breaker import CircuitBreakerMiddleware
@@ -184,6 +185,9 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "requires_flag": ("hawkapi.flags", "requires_flag"),
     # graphql
     "GraphQLExecutor": ("hawkapi.graphql", "GraphQLExecutor"),
+    # grpc
+    "GrpcMount": ("hawkapi.grpc", "GrpcMount"),
+    "HawkAPIObservabilityInterceptor": ("hawkapi.grpc", "HawkAPIObservabilityInterceptor"),
 }
 
 
@@ -283,4 +287,6 @@ __all__ = [
     "Flags",
     "StaticFlagProvider",
     "GraphQLExecutor",
+    "GrpcMount",
+    "HawkAPIObservabilityInterceptor",
 ]

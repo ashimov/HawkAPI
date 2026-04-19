@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `app.mount_grpc(servicer, add_to_server=..., port=50051)` — thin gRPC integration over `grpc.aio`: ASGI lifespan-tied server lifecycle, built-in `HawkAPIObservabilityInterceptor` (structured logging + Prometheus metrics), context injection (`context.hawkapi_app`, `context.hawkapi_request_id`), reflection toggle with `reflection_service_names`, TLS passthrough via `ssl_credentials`, port-merge for multi-servicer setups; zero runtime deps on default path (`grpcio` imported lazily) (Tier 2 gRPC thin mount)
 - `app.mount_graphql(path, executor=...)` — thin GraphQL-over-HTTP adapter: POST + GET wire protocol, GraphiQL UI served to browsers, context injection via `context_factory`, and two optional adapters (`from_graphql_core`, `from_strawberry`) behind lazy imports; zero new runtime deps (Tier 2 GraphQL thin mount)
 - Feature flags subsystem: `FlagProvider` Protocol, built-in Static/Env/File providers (File with mtime hot-reload, JSON/TOML/YAML), `Flags` facade, `Depends(get_flags)` DI helper with per-request `EvalContext`, `@requires_flag` decorator (404 on off), plugin hook `on_flag_evaluated`; zero external deps (Tier 2 feature flags)
 - `hawkapi gen-client` CLI: generates zero-dep TypeScript (`client.ts`) + Python (`client.py`) client SDKs from OpenAPI 3.1 spec; msgspec-backed for Python, native fetch for TS (Tier 3 OpenAPI codegen)
