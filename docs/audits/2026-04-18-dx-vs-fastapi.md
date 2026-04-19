@@ -1,6 +1,6 @@
 # HawkAPI DX audit vs FastAPI
 
-**Date:** 2026-04-18
+**Date:** 2026-04-18 (corrected 2026-04-18)
 **Scope:** Feature-parity snapshot of HawkAPI vs FastAPI. Research-only; no code changes here.
 **Spec:** [docs/plans/2026-04-18-dx-audit-design.md](../plans/2026-04-18-dx-audit-design.md)
 
@@ -8,19 +8,19 @@
 
 ## Executive summary
 
-HawkAPI currently **matches or exceeds FastAPI on ~85 % of the tutorial-level DX surface**, and meaningfully exceeds on differentiators FastAPI does not ship at all (API versioning, permission policies, built-in bulkhead/circuit-breaker/rate-limiter, observability, migration codemod, PEP 703 wheels).
+HawkAPI **matches or exceeds FastAPI on ~90 % of the tutorial-level DX surface** and meaningfully exceeds on differentiators FastAPI does not ship at all (API versioning, permission policies, built-in bulkhead/circuit-breaker/rate-limiter, observability, migration codemod, PEP 703 wheels).
 
-The five gaps below are the ones that hurt migration from a real FastAPI codebase the most — not because they are large engineering tasks, but because they are everywhere in FastAPI tutorials and copy-pasted into real production code:
+The five gaps below were identified in the initial audit as the items hurting migration from a real FastAPI codebase the most. Four of the five are **closed** at this revision; one remains.
 
-| # | Gap | Severity | Effort |
-|---|---|---|---|
-| 1 | **Yield-dependencies with per-request finalization** | Critical | M |
-| 2 | **Route-level `dependencies=[Depends(...)]`** on decorators | Important | S |
-| 3 | **`response_model_exclude_none/unset/defaults`** flags | Important | S |
-| 4 | **OAuth2 scopes enforcement + OpenAPI reflection** | Important | M |
-| 5 | **`status` module with HTTP_NNN constants** | Minor (cosmetic) | XS |
+| # | Gap | Severity | Effort | Status |
+|---|---|---|---|---|
+| 1 | **Yield-dependencies with per-request finalization** | Critical | M | ✅ always shipped (see correction below) |
+| 2 | **Route-level `dependencies=[Depends(...)]`** on decorators | Important | S | ✅ shipped (commit `14a7a28`) |
+| 3 | **`response_model_exclude_none/unset/defaults`** flags | Important | S | ✅ shipped (commit `10b3655`) |
+| 4 | **OAuth2 scopes enforcement + OpenAPI reflection** | Important | M | ❌ open — last remaining |
+| 5 | **`status` module with HTTP_NNN constants** | Minor (cosmetic) | XS | ✅ shipped (commit `de14afc`) |
 
-Everything else is either already present or a known out-of-scope differentiator. The non-gap surplus (built-in versioning, bulkhead, observability, codemod, etc.) is strong; the five items above close the last mile of "FastAPI users land on HawkAPI and nothing is missing."
+**Correction (2026-04-18):** Gap #1 was incorrectly flagged ⚠️ partial in the original matrix. A second-pass re-verification confirmed yield-dependencies with per-request teardown are **fully working**: `src/hawkapi/di/resolver.py:_execute_dep_plan` pushes generators onto a per-request cleanup stack, and `src/hawkapi/app.py:534-548` advances (success) or closes (exception) every generator in reverse order. 6 tests in `tests/unit/test_generator_deps.py` cover sync/async generators, cleanup on error, and multi-gen ordering. No work needed for Gap #1.
 
 ---
 
@@ -39,7 +39,7 @@ Legend: ✅ full, ⚠️ partial, ❌ missing.
 | Route-level `response_model=` | Router.add_route | ✅ | |
 | Route-level `status_code=` | Router.add_route | ✅ | |
 | Route-level `include_in_schema=False` | Router.add_route | ✅ | |
-| Route-level `dependencies=[...]` (side-effect deps) | — | ❌ | Must use app-level hooks or middleware today (**Gap #2**) |
+| Route-level `dependencies=[...]` (side-effect deps) | Router + route decorators (commit `14a7a28`) | ✅ | Shipped in Gap #2; router-level also supported |
 | `include_router(responses=...)` default-response map | — | ❌ | Not supported |
 | Sub-app mount `app.mount("/x", subapp)` | app.py | ✅ | |
 
@@ -63,10 +63,10 @@ Legend: ✅ full, ⚠️ partial, ❌ missing.
 |---|---|---|---|
 | `Depends(callable)` | [src/hawkapi/di/depends.py](../../src/hawkapi/di/depends.py) | ✅ | |
 | Sub-dependencies (transitive) | di/param_plan.py | ✅ | Resolved recursively |
-| `yield` dependencies with teardown after response | — | ⚠️ | App-level `lifespan` only; no per-request yield-dep (**Gap #1**) |
+| `yield` dependencies with teardown after response | [di/resolver.py](../../src/hawkapi/di/resolver.py) `_execute_dep_plan` + [app.py](../../src/hawkapi/app.py) cleanup finalizer | ✅ | Sync + async generators; reverse-order cleanup on success or exception; 6 tests in `test_generator_deps.py` |
 | Class-callable as dependency | di/param_plan.py | ✅ | |
-| Path-operation-level `dependencies=[...]` | — | ❌ | Requires middleware today (**Gap #2**) |
-| Global (app-level) dependencies | — | ❌ | Workaround: middleware |
+| Path-operation-level `dependencies=[...]` | Router + route decorators (commit `14a7a28`) | ✅ | Shipped in Gap #2 |
+| Global (app-level) dependencies | — | ⚠️ | Available as `Router(dependencies=[...])` subclass pattern; no `HawkAPI(dependencies=[...])` kwarg yet |
 | Within-request caching of same `Depends(fn)` | di/scope.py | ✅ | Scope-level caching |
 | `dependency_overrides` for tests | [testing/overrides.py](../../src/hawkapi/testing/overrides.py) | ✅ | `override()` context manager |
 
@@ -88,7 +88,7 @@ Legend: ✅ full, ⚠️ partial, ❌ missing.
 | `JSONResponse` | responses/json_response.py | ✅ | |
 | `HTMLResponse`, `PlainTextResponse`, `RedirectResponse`, `FileResponse`, `StreamingResponse` | `src/hawkapi/responses/` | ✅ | |
 | Return `Response` directly from handler (bypass serialization) | responses/response.py | ✅ | |
-| `response_model_exclude_none/unset/defaults` | — | ❌ | Not wired (**Gap #3**) |
+| `response_model_exclude_none/unset/defaults` | [serialization/filters.py](../../src/hawkapi/serialization/filters.py) (commit `10b3655`) | ✅ | Shipped in Gap #3; recursive over msgspec + Pydantic |
 | `jsonable_encoder` equivalent | [serialization/encoder.py](../../src/hawkapi/serialization/encoder.py) | ✅ | `encode_response()` |
 | Content negotiation (Accept → JSON vs MessagePack) | serialization/negotiation.py | ✅ | Exceeds FastAPI |
 
@@ -164,7 +164,7 @@ Legend: ✅ full, ⚠️ partial, ❌ missing.
 
 | FastAPI feature | HawkAPI | Status | Notes |
 |---|---|---|---|
-| `from fastapi import status` → `status.HTTP_201_CREATED` | — | ❌ | No constants module (**Gap #5**) |
+| `from fastapi import status` → `status.HTTP_201_CREATED` | [status.py](../../src/hawkapi/status.py) (commit `de14afc`) | ✅ | Shipped in Gap #5; Starlette-compatible names |
 | CORS middleware | middleware/cors.py | ✅ | |
 | GZip middleware | middleware/gzip.py | ✅ | |
 | Session (signed cookies) middleware | middleware/session.py | ✅ | |
@@ -176,94 +176,14 @@ Legend: ✅ full, ⚠️ partial, ❌ missing.
 
 ## Top-5 gaps (detailed)
 
-### Gap #1 — Yield-dependencies with per-request finalization
+### Gaps #1, #2, #3, #5 — closed
 
-**Severity:** Critical  **Effort:** M
-
-**What FastAPI has:**
-
-```python
-async def get_db() -> AsyncIterator[AsyncSession]:
-    async with SessionLocal() as session:
-        yield session  # returned to handler
-
-@app.get("/users")
-async def list_users(db: AsyncSession = Depends(get_db)) -> list[User]:
-    ...
-# After response is sent, session context manager exits; rolls back or commits.
-```
-
-This is THE pattern in FastAPI tutorials and production code for database sessions, HTTP clients, Redis connections, transactions. Every SQLAlchemy/Databases example depends on it.
-
-**What HawkAPI has:** App-level `lifespan` context manager for long-lived resources. No per-request teardown.
-
-**Work required:**
-- Extend `src/hawkapi/di/param_plan.py` to detect generator/async-generator dependencies.
-- Register each yield-dep on a per-request stack (push on entry, pop + run remaining code after the handler's response body is sent).
-- Ensure cancellation and exception paths run the finalizers.
-- Wire teardown to run AFTER response headers+body flushed (like FastAPI) so the client isn't blocked.
-- Test: yield that raises during teardown — how should the error be reported? (FastAPI: logs, ignores.)
-
-**Payoff:** Single biggest migration-friction item for any FastAPI user with a database.
-
----
-
-### Gap #2 — Route-level `dependencies=[Depends(...)]`
-
-**Severity:** Important  **Effort:** S
-
-**What FastAPI has:**
-
-```python
-@app.get("/admin/reports", dependencies=[Depends(require_admin)])
-async def reports() -> ...:
-    ...
-```
-
-Used pervasively for auth guards, audit-log writers, rate-limit increments that don't need a return value. Also accepted on `APIRouter(dependencies=[...])` for whole-router guards.
-
-**What HawkAPI has:** Workaround via app-level hooks or middleware. No decorator-level kwarg.
-
-**Work required:**
-- Add `dependencies: Sequence[Depends] | None = None` kwarg to the route decorators in `src/hawkapi/routing/router.py`.
-- Add the same kwarg on the `Router` class constructor and `include_router` call; merge router-level + route-level lists.
-- On request: resolve each `Depends` before invoking the handler; any raised exception short-circuits (consistent with FastAPI behavior).
-- Make the results *not* injected into the handler's signature — they're executed for side effects only.
-- Tests: chain ordering, exceptions, interaction with yield-dependencies.
-
-**Payoff:** Biggest ergonomic win for anyone who reads FastAPI auth examples and copy-pastes.
-
----
-
-### Gap #3 — `response_model_exclude_none / _unset / _defaults`
-
-**Severity:** Important  **Effort:** S
-
-**What FastAPI has:**
-
-```python
-@app.get(
-    "/items/{id}",
-    response_model=Item,
-    response_model_exclude_none=True,     # drop keys whose value is None
-    response_model_exclude_unset=True,    # drop keys the user didn't set
-    response_model_exclude_defaults=True, # drop keys equal to their default
-)
-```
-
-Used for:
-- APIs where optional fields shouldn't serialize as `"field": null`
-- Versioned responses where fields were added later and old clients shouldn't see them
-- Admin vs public response shapes
-
-**What HawkAPI has:** `response_model` accepted on routes; the three exclusion knobs are not wired through to the serializer.
-
-**Work required:**
-- Plumb three flags from route metadata → `src/hawkapi/serialization/encoder.py`.
-- msgspec already supports field exclusion at encode time; map the flags onto its API.
-- Tests per flag + combinations.
-
-**Payoff:** Low-effort closure of a feature 70 % of FastAPI response_model users eventually reach for.
+| Gap | Outcome | Commit / file |
+|---|---|---|
+| #1 Yield-dependencies | Confirmed always shipped; re-verification found full sync + async generator support, reverse-order teardown, cleanup-on-error, multi-gen ordering | [di/resolver.py:_execute_dep_plan](../../src/hawkapi/di/resolver.py) + [app.py](../../src/hawkapi/app.py) finally block + `tests/unit/test_generator_deps.py` (6 tests) |
+| #2 Route / router `dependencies=[...]` | Shipped | commit `14a7a28`, `tests/unit/test_route_dependencies.py` |
+| #3 `response_model_exclude_*` flags | Shipped (msgspec + Pydantic + nested recursion) | commit `10b3655`, [serialization/filters.py](../../src/hawkapi/serialization/filters.py), `tests/unit/test_response_model_exclude.py` |
+| #5 `hawkapi.status` constants | Shipped (Starlette-compat naming; `http.HTTPStatus`-derived) | commit `de14afc`, [status.py](../../src/hawkapi/status.py), `tests/unit/test_status.py` |
 
 ---
 
@@ -311,30 +231,6 @@ async def list_items() -> ...:
 
 ---
 
-### Gap #5 — `status` module with HTTP_NNN constants
-
-**Severity:** Minor (but high frequency)  **Effort:** XS
-
-**What FastAPI has:**
-
-```python
-from fastapi import status
-
-@app.post("/items", status_code=status.HTTP_201_CREATED)
-async def create_item(...): ...
-```
-
-Pure cosmetic convenience re-exported from Starlette. Everyone uses it.
-
-**What HawkAPI has:** Users hardcode `201`.
-
-**Work required:**
-- Create `src/hawkapi/status.py` re-exporting the standard HTTP constants (can copy from Starlette's `starlette.status`, or use `http.HTTPStatus`'s integer values).
-- Export `status` from `hawkapi/__init__.py` so `from hawkapi import status` works.
-- One-line unit test.
-
-**Payoff:** Removes a paper cut. A one-hour job that eliminates a reason someone says "HawkAPI is missing things FastAPI has."
-
 ---
 
 ## Where HawkAPI already exceeds FastAPI
@@ -361,14 +257,28 @@ Not gaps — differentiators we should not accidentally dilute while closing the
 
 ---
 
-## Follow-ups (not this project)
+## Follow-ups
 
-Each of the top-5 gaps becomes its own design spec + implementation plan. Recommended order (smallest effort / highest ratio first, to accumulate shipped wins):
+**Top-5 progress (4/5 closed):**
 
-1. **Gap #5** (`status` constants) — afternoon of work.
-2. **Gap #3** (`response_model_exclude_*`) — one spec, small impl.
-3. **Gap #2** (`dependencies=[...]` kwarg) — clean decorator change.
-4. **Gap #1** (yield-dependencies) — the big one, touches DI core.
-5. **Gap #4** (OAuth2 scopes) — biggest surface area, last.
+1. ✅ Gap #5 (`status` constants) — commit `de14afc`.
+2. ✅ Gap #3 (`response_model_exclude_*`) — commit `10b3655`.
+3. ✅ Gap #2 (`dependencies=[...]` kwarg) — commit `14a7a28`.
+4. ✅ Gap #1 (yield-dependencies) — confirmed always shipped; no code change needed, audit corrected.
+5. ❌ Gap #4 (OAuth2 scopes) — **next**.
 
-This order gives four visible DX-parity wins before the fifth (scopes) takes more effort. Each gets an independent cycle — spec → plan → implement — following the workflow used for Tier 1 and Tier 2.
+**Second-tier gaps (not in top-5 but worth tracking):**
+
+- `Form()` marker class (multipart field validation)
+- `OAuth2PasswordRequestForm` helper
+- `openapi_tags=[{name, description, externalDocs}, ...]` with metadata
+- `servers=[...]` for OpenAPI
+- Per-route `openapi_extra={}`
+- `include_router(responses={...})`
+- `Jinja2Templates` / `TemplateResponse`
+- AsyncAPI story for WebSocket routes
+- Legacy `@app.on_event()` decorator (codemod already targets migration)
+- `contact=` / `license_info=` on constructor
+- Global `HawkAPI(dependencies=[...])` kwarg
+
+Each becomes its own spec → plan → implement cycle if prioritized.
