@@ -17,7 +17,10 @@ def _get_metrics() -> tuple[Any, Any]:
     """Return (requests_total counter, request_duration histogram), creating once."""
     if "requests_total" not in _METRICS:
         try:
-            from prometheus_client import Counter, Histogram  # noqa: PLC0415
+            from prometheus_client import (  # noqa: PLC0415  # pyright: ignore[reportMissingImports]
+                Counter,  # pyright: ignore[reportUnknownVariableType]
+                Histogram,  # pyright: ignore[reportUnknownVariableType]
+            )
 
             _METRICS["requests_total"] = Counter(
                 "hawkapi_grpc_requests_total",
@@ -32,7 +35,7 @@ def _get_metrics() -> tuple[Any, Any]:
         except Exception:  # prometheus not installed or duplicate  # noqa: BLE001
             _METRICS["requests_total"] = None
             _METRICS["request_duration"] = None
-    return _METRICS["requests_total"], _METRICS["request_duration"]
+    return _METRICS["requests_total"], _METRICS["request_duration"]  # pyright: ignore[reportUnknownVariableType]
 
 
 class _ContextProxy:
@@ -117,7 +120,7 @@ def _build_interceptor_class() -> type:
 
 
 # Cache the built class so we don't rebuild on every mount_grpc call
-_INTERCEPTOR_CLASS: type | None = None
+_interceptor_class: type | None = None
 
 
 class HawkAPIObservabilityInterceptor:
@@ -128,10 +131,10 @@ class HawkAPIObservabilityInterceptor:
     """
 
     def __new__(cls, app: Any) -> Any:  # type: ignore[misc]
-        global _INTERCEPTOR_CLASS
-        if _INTERCEPTOR_CLASS is None:
-            _INTERCEPTOR_CLASS = _build_interceptor_class()
-        return _INTERCEPTOR_CLASS(app)
+        global _interceptor_class
+        if _interceptor_class is None:
+            _interceptor_class = _build_interceptor_class()
+        return _interceptor_class(app)
 
 
 def _make_unary_wrapper(original_fn: Any, app: Any, method: str) -> Any:

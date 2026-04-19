@@ -201,7 +201,7 @@ def main(argv: list[str] | None = None) -> None:
 def _run_dev(args: argparse.Namespace) -> None:
     """Run the development server using uvicorn."""
     try:
-        import uvicorn
+        import uvicorn  # pyright: ignore[reportMissingImports]
     except ImportError:
         print(
             "Error: uvicorn is required for 'hawkapi dev'. "
@@ -211,7 +211,7 @@ def _run_dev(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     print(f"Starting HawkAPI dev server: {args.app}")
-    uvicorn.run(
+    uvicorn.run(  # pyright: ignore[reportUnknownMemberType]
         args.app,
         host=args.host,
         port=args.port,

@@ -164,7 +164,7 @@ class FileFlagProvider:
             import tomllib  # stdlib 3.11+  # noqa: PLC0415
 
             with self._path.open("rb") as fh:
-                data = tomllib.load(fh)
+                data: Any = tomllib.load(fh)
         elif ext in (".yaml", ".yml"):
             try:
                 import yaml  # type: ignore[import-untyped]  # noqa: PLC0415

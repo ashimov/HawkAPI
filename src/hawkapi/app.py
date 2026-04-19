@@ -599,7 +599,9 @@ class HawkAPI(Router):
             # handler. Return values are discarded; HTTPException short-
             # circuits via the existing try/except below.
             if route.dependencies:
-                from hawkapi.di.resolver import _execute_dep_plan  # noqa: PLC0415
+                from hawkapi.di.resolver import (
+                    _execute_dep_plan,  # noqa: PLC0415  # pyright: ignore[reportPrivateUsage]
+                )
 
                 for dep_plan in route.dependencies:
                     await _execute_dep_plan(
@@ -865,7 +867,7 @@ class HawkAPI(Router):
         # convert to builtins and validate through the model. ``isinstance`` is
         # guarded by ``isinstance(response_model, type)`` because parameterized
         # generics like ``list[Item]`` cannot be the second arg of isinstance.
-        if isinstance(response_model, type) and isinstance(result, response_model):
+        if isinstance(response_model, type) and isinstance(result, response_model):  # pyright: ignore[reportUnnecessaryIsInstance]
             return result
         return msgspec.convert(msgspec.to_builtins(result), response_model)
 

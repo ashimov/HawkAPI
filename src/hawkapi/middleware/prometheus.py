@@ -25,6 +25,13 @@ class PrometheusMiddleware(Middleware):
     Requires: ``pip install hawkapi[metrics]``
     """
 
+    # Typed as Any because prometheus_client is an optional dependency; its
+    # stubs are not available at type-check time.
+    _registry: Any
+    _requests_total: Any
+    _request_duration: Any
+    _in_progress: Any
+
     def __init__(
         self,
         app: ASGIApp,
@@ -33,28 +40,33 @@ class PrometheusMiddleware(Middleware):
         registry: Any = None,
     ) -> None:
         super().__init__(app)
-        from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
+        from prometheus_client import (  # pyright: ignore[reportMissingImports]
+            CollectorRegistry,  # pyright: ignore[reportUnknownVariableType]
+            Counter,  # pyright: ignore[reportUnknownVariableType]
+            Gauge,  # pyright: ignore[reportUnknownVariableType]
+            Histogram,  # pyright: ignore[reportUnknownVariableType]
+        )
 
         self._metrics_path = metrics_path
-        self._registry: CollectorRegistry = registry or CollectorRegistry()
+        self._registry = registry or CollectorRegistry()  # pyright: ignore[reportUnknownVariableType]
 
-        self._requests_total = Counter(
+        self._requests_total = Counter(  # pyright: ignore[reportUnknownVariableType]
             "http_requests_total",
             "Total HTTP requests",
             ["method", "path", "status"],
-            registry=self._registry,
+            registry=self._registry,  # pyright: ignore[reportUnknownMemberType]
         )
-        self._request_duration = Histogram(
+        self._request_duration = Histogram(  # pyright: ignore[reportUnknownVariableType]
             "http_request_duration_seconds",
             "HTTP request duration in seconds",
             ["method", "path"],
-            registry=self._registry,
+            registry=self._registry,  # pyright: ignore[reportUnknownMemberType]
         )
-        self._in_progress = Gauge(
+        self._in_progress = Gauge(  # pyright: ignore[reportUnknownVariableType]
             "http_requests_in_progress",
             "HTTP requests currently in progress",
             ["method"],
-            registry=self._registry,
+            registry=self._registry,  # pyright: ignore[reportUnknownMemberType]
         )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -90,16 +102,18 @@ class PrometheusMiddleware(Middleware):
             self._in_progress.labels(method=method).dec()
 
     async def _serve_metrics(self, scope: Scope, receive: Receive, send: Send) -> None:
-        from prometheus_client import generate_latest
+        from prometheus_client import (  # pyright: ignore[reportMissingImports]
+            generate_latest,  # pyright: ignore[reportUnknownVariableType]
+        )
 
-        body = generate_latest(self._registry)
+        body: bytes = generate_latest(self._registry)  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
         await send(
             {
                 "type": "http.response.start",
                 "status": 200,
                 "headers": [
                     (b"content-type", b"text/plain; version=0.0.4; charset=utf-8"),
-                    (b"content-length", str(len(body)).encode("latin-1")),
+                    (b"content-length", str(len(body)).encode("latin-1")),  # pyright: ignore[reportUnknownArgumentType]
                 ],
             }
         )

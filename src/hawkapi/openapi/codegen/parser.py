@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, cast
 
 from hawkapi.openapi.codegen.ir import (
-    _SENTINEL,
+    _SENTINEL,  # pyright: ignore[reportPrivateUsage]
     ClientIR,
     FieldIR,
     OperationIR,
@@ -51,7 +51,7 @@ def _schema_to_type_str(schema: dict[str, Any], components: dict[str, Any]) -> s
     # anyOf/oneOf — look for nullable pattern: [T, {"type": "null"}]
     for key in ("anyOf", "oneOf"):
         if key in schema:
-            variants = schema[key]
+            variants: list[dict[str, Any]] = schema[key]
             non_null = [v for v in variants if v.get("type") != "null"]
             has_null = any(v.get("type") == "null" for v in variants)
             if len(non_null) == 1:
@@ -79,14 +79,15 @@ def _schema_to_type_str(schema: dict[str, Any], components: dict[str, Any]) -> s
     if schema_type == "object":
         additional = schema.get("additionalProperties")
         if additional and isinstance(additional, dict):
-            val_type = _schema_to_type_str(additional, components)
+            val_type = _schema_to_type_str(cast(dict[str, Any], additional), components)
             return f"dict[str, {val_type}]"
         return "dict[str, Any]"
 
     # nullable shorthand (OpenAPI 3.1 uses `{"type": ["string", "null"]}`)
     if isinstance(schema_type, list):
-        non_null_types = [t for t in schema_type if t != "null"]
-        has_null = "null" in schema_type
+        type_list: list[str] = [str(t) for t in schema_type]  # pyright: ignore[reportUnknownVariableType,reportUnknownArgumentType]
+        non_null_types = [t for t in type_list if t != "null"]
+        has_null = "null" in type_list
         if len(non_null_types) == 1:
             inner = _schema_to_type_str({**schema, "type": non_null_types[0]}, components)
             return f"{inner} | None" if has_null else inner

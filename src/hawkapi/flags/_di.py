@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import cast
+
 from hawkapi.flags.base import EvalContext, Flags
 from hawkapi.requests.request import Request
 
@@ -17,7 +20,9 @@ async def get_flags(request: Request) -> Flags:
     ctx = EvalContext(
         user_id=request.headers.get("x-user-id"),
         tenant_id=request.headers.get("x-tenant-id"),
-        headers=request.headers,
+        # Headers satisfies the Mapping[str, str] protocol at runtime;
+        # cast tells pyright the types align without changing behaviour.
+        headers=cast(Mapping[str, str], request.headers),
     )
     return Flags(app.flags, ctx, app=app)
 

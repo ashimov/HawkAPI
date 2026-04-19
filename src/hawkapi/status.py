@@ -54,4 +54,8 @@ WS_1014_BAD_GATEWAY = 1014
 WS_1015_TLS_HANDSHAKE = 1015
 
 
-__all__ = sorted(name for name in globals() if name.startswith(("HTTP_", "WS_")))
+# __all__ is built from globals() populated by _generate_http_constants() above.
+# Pyright cannot statically verify a dynamic __all__; suppress the diagnostic.
+__all__: list[str] = sorted(  # pyright: ignore[reportUnsupportedDunderAll]
+    name for name in globals() if name.startswith(("HTTP_", "WS_"))
+)

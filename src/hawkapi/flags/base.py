@@ -90,7 +90,7 @@ class Flags:
         app = self._app
         if app is None:
             return
-        plugins = getattr(app, "_plugins", None) or getattr(app, "plugins", None) or []
+        plugins: list[Any] = getattr(app, "_plugins", None) or getattr(app, "plugins", None) or []
         for plugin in plugins:
             hook = getattr(plugin, "on_flag_evaluated", None)
             if hook is None:

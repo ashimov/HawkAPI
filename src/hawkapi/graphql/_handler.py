@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, cast
 
 from hawkapi.graphql._graphiql import GRAPHIQL_HTML
 from hawkapi.graphql._protocol import GraphQLExecutor
@@ -97,6 +97,7 @@ def make_graphql_handler(
                 return _error_response("Malformed JSON body")
             if not isinstance(payload, dict):
                 return _error_response("Request body must be a JSON object")
+            payload = cast(dict[str, Any], payload)
             query = payload.get("query")
             if not query or not isinstance(query, str):
                 return _error_response("Missing or invalid 'query' field")

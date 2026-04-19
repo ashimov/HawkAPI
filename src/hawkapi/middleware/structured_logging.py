@@ -30,23 +30,23 @@ class StructuredLoggingMiddleware(Middleware):
         configure_structlog: bool = True,
     ) -> None:
         super().__init__(app)
-        import structlog
+        import structlog  # pyright: ignore[reportMissingImports]
 
         self._request_id_header = request_id_header.lower().encode("latin-1")
         self._log_level = log_level
 
-        if configure_structlog and not structlog.is_configured():
-            structlog.configure(
+        if configure_structlog and not structlog.is_configured():  # pyright: ignore[reportUnknownMemberType]
+            structlog.configure(  # pyright: ignore[reportUnknownMemberType]
                 processors=[
-                    structlog.processors.TimeStamper(fmt="iso"),
-                    structlog.processors.add_log_level,
-                    structlog.processors.JSONRenderer(),
+                    structlog.processors.TimeStamper(fmt="iso"),  # pyright: ignore[reportUnknownMemberType]
+                    structlog.processors.add_log_level,  # pyright: ignore[reportUnknownMemberType]
+                    structlog.processors.JSONRenderer(),  # pyright: ignore[reportUnknownMemberType]
                 ],
-                wrapper_class=structlog.BoundLogger,
-                logger_factory=structlog.PrintLoggerFactory(),
+                wrapper_class=structlog.BoundLogger,  # pyright: ignore[reportUnknownMemberType]
+                logger_factory=structlog.PrintLoggerFactory(),  # pyright: ignore[reportUnknownMemberType]
                 cache_logger_on_first_use=True,
             )
-        self._logger: Any = structlog.get_logger("hawkapi")
+        self._logger: Any = structlog.get_logger("hawkapi")  # pyright: ignore[reportUnknownMemberType]
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":

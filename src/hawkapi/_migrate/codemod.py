@@ -83,7 +83,7 @@ class _Context:
     """Per-file mutable state shared across visitors."""
 
     convert_models: bool = False
-    warnings: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)  # pyright: ignore[reportUnknownVariableType]
     needs_msgspec_import: bool = False
     has_msgspec_import: bool = False
 
@@ -100,7 +100,7 @@ def _dotted_name_to_str(node: cst.BaseExpression | None) -> str | None:
         return node.value
     if isinstance(node, cst.Attribute):
         left = _dotted_name_to_str(node.value)
-        if not isinstance(node.attr, cst.Name) or left is None:
+        if left is None:
             return None
         return f"{left}.{node.attr.value}"
     return None
@@ -234,7 +234,7 @@ class _LifespanRewriter(cst.CSTTransformer):
         if not isinstance(deco, cst.Call):
             return updated_node
         func = deco.func
-        if not isinstance(func, cst.Attribute) or not isinstance(func.attr, cst.Name):
+        if not isinstance(func, cst.Attribute):
             return updated_node
         if func.attr.value != "on_event":
             return updated_node
@@ -260,11 +260,7 @@ def _has_basemodel_base(node: cst.ClassDef) -> bool:
         val = base.value
         if isinstance(val, cst.Name) and val.value == "BaseModel":
             return True
-        if (
-            isinstance(val, cst.Attribute)
-            and isinstance(val.attr, cst.Name)
-            and val.attr.value == "BaseModel"
-        ):
+        if isinstance(val, cst.Attribute) and val.attr.value == "BaseModel":
             return True
     return False
 
@@ -278,12 +274,12 @@ def _class_has_validator(node: cst.ClassDef) -> bool:
             name: str | None = None
             if isinstance(d, cst.Name):
                 name = d.value
-            elif isinstance(d, cst.Attribute) and isinstance(d.attr, cst.Name):
+            elif isinstance(d, cst.Attribute):
                 name = d.attr.value
             elif isinstance(d, cst.Call):
                 if isinstance(d.func, cst.Name):
                     name = d.func.value
-                elif isinstance(d.func, cst.Attribute) and isinstance(d.func.attr, cst.Name):
+                elif isinstance(d.func, cst.Attribute):
                     name = d.func.attr.value
             if name in _VALIDATOR_NAMES:
                 return True
@@ -296,11 +292,7 @@ def _replace_basemodel_base(base: cst.Arg) -> cst.Arg:
         return base.with_changes(
             value=cst.Attribute(value=cst.Name("msgspec"), attr=cst.Name("Struct"))
         )
-    if (
-        isinstance(val, cst.Attribute)
-        and isinstance(val.attr, cst.Name)
-        and val.attr.value == "BaseModel"
-    ):
+    if isinstance(val, cst.Attribute) and val.attr.value == "BaseModel":
         return base.with_changes(
             value=cst.Attribute(value=cst.Name("msgspec"), attr=cst.Name("Struct"))
         )
@@ -347,7 +339,7 @@ def _route_path_from_decorator(deco: cst.Decorator, verbs: set[str]) -> str | No
     if not isinstance(d, cst.Call):
         return None
     func = d.func
-    if isinstance(func, cst.Attribute) and isinstance(func.attr, cst.Name):
+    if isinstance(func, cst.Attribute):
         if func.attr.value not in verbs:
             return None
     else:
@@ -367,11 +359,7 @@ def _annotation_str(annotation: cst.Annotation | None) -> str | None:
     ann = annotation.annotation
     if isinstance(ann, cst.Name):
         return ann.value
-    if (
-        isinstance(ann, cst.Attribute)
-        and isinstance(ann.attr, cst.Name)
-        and isinstance(ann.value, cst.Name)
-    ):
+    if isinstance(ann, cst.Attribute) and isinstance(ann.value, cst.Name):
         return f"{ann.value.value}.{ann.attr.value}"
     return None
 

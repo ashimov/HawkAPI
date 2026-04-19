@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field  # noqa: F401 — field kept for subclassers
+from dataclasses import dataclass
 from typing import Any, Literal
 
 _SENTINEL = object()

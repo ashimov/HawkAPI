@@ -6,7 +6,7 @@ NOT required at install time and are NOT imported at module load time.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from hawkapi.graphql._protocol import GraphQLExecutor
 
@@ -31,22 +31,25 @@ def from_graphql_core(schema: Any, *, middleware: Any = None) -> GraphQLExecutor
         operation_name: str | None,
         context: dict[str, Any],
     ) -> dict[str, Any]:
-        from graphql import graphql  # noqa: PLC0415
+        import graphql as _gql  # noqa: PLC0415  # pyright: ignore[reportMissingImports]
 
-        result = await graphql(
-            schema,
-            query,
-            variable_values=variables,
-            operation_name=operation_name,
-            context_value=context,
-            middleware=middleware,
+        _result: Any = cast(
+            Any,
+            await _gql.graphql(  # pyright: ignore[reportUnknownMemberType]
+                schema,
+                query,
+                variable_values=variables,
+                operation_name=operation_name,
+                context_value=context,
+                middleware=middleware,
+            ),
         )
         response: dict[str, Any] = {}
-        if result.data is not None:
-            response["data"] = result.data
-        if result.errors:
+        if _result.data is not None:
+            response["data"] = _result.data
+        if _result.errors:
             response["errors"] = [
-                {"message": str(e), "path": getattr(e, "path", None)} for e in result.errors
+                {"message": str(e), "path": getattr(e, "path", None)} for e in _result.errors
             ]
         return response
 
@@ -72,9 +75,9 @@ def from_strawberry(schema: Any, *, root_value: Any = None) -> GraphQLExecutor:
         operation_name: str | None,
         context: dict[str, Any],
     ) -> dict[str, Any]:
-        import strawberry  # noqa: PLC0415, F401
+        import strawberry  # noqa: PLC0415, F401  # pyright: ignore[reportMissingImports,reportUnusedImport]
 
-        result = await schema.execute(
+        _result: Any = await schema.execute(
             query,
             variable_values=variables,
             operation_name=operation_name,
@@ -82,11 +85,11 @@ def from_strawberry(schema: Any, *, root_value: Any = None) -> GraphQLExecutor:
             root_value=root_value,
         )
         response: dict[str, Any] = {}
-        if result.data is not None:
-            response["data"] = result.data
-        if result.errors:
+        if _result.data is not None:
+            response["data"] = _result.data
+        if _result.errors:
             response["errors"] = [
-                {"message": str(e), "path": getattr(e, "path", None)} for e in result.errors
+                {"message": str(e), "path": getattr(e, "path", None)} for e in _result.errors
             ]
         return response
 

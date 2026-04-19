@@ -2,16 +2,16 @@
   "schema": 1,
   "tests": {
     "tests/perf/test_memory_budget.py::test_app_init_memory_budget": {
-      "peak_bytes": 156147,
-      "recorded_at": "2026-04-19T09:25:51Z"
+      "peak_bytes": 407568,
+      "recorded_at": "2026-04-19T09:26:33Z"
     },
     "tests/perf/test_memory_budget.py::test_no_leaks_in_request_loop": {
-      "peak_bytes": 47451,
-      "recorded_at": "2026-04-19T09:25:51Z"
+      "peak_bytes": 47803,
+      "recorded_at": "2026-04-19T09:26:33Z"
     },
     "tests/perf/test_memory_budget.py::test_single_request_memory_budget": {
-      "peak_bytes": 1075592,
-      "recorded_at": "2026-04-19T09:25:51Z"
+      "peak_bytes": 27033,
+      "recorded_at": "2026-04-19T09:26:33Z"
     }
   }
 }

@@ -22,7 +22,7 @@ there — documented behaviour, not a bug.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import msgspec
 
@@ -59,7 +59,7 @@ def apply_exclude_filters(
         if isinstance(raw, dict):
             struct_type = type(data)
             result = _filter_struct_dict(
-                raw,
+                cast(dict[str, Any], raw),
                 struct_type,
                 data,
                 exclude_unset=exclude_unset,
@@ -117,8 +117,12 @@ def _filter_struct_dict(
             continue
         # Recurse into nested Structs.
         if isinstance(attr, msgspec.Struct):
-            value = _filter_struct_dict(
+            nested_raw: dict[str, Any] = cast(
+                dict[str, Any],
                 value if isinstance(value, dict) else msgspec.to_builtins(attr),
+            )
+            value = _filter_struct_dict(
+                nested_raw,
                 type(attr),
                 attr,
                 exclude_unset=exclude_unset,
@@ -148,9 +152,10 @@ def _is_default(field_info: msgspec.structs.FieldInfo, value: Any) -> bool:
 def _drop_none(data: Any) -> Any:
     """Recursively remove keys with ``None`` values from dict/list trees."""
     if isinstance(data, dict):
-        return {k: _drop_none(v) for k, v in data.items() if v is not None}
+        d = cast(dict[str, Any], data)
+        return {k: _drop_none(v) for k, v in d.items() if v is not None}
     if isinstance(data, list):
-        return [_drop_none(v) for v in data]
+        return [_drop_none(v) for v in cast(list[Any], data)]
     return data
 
 
