@@ -33,7 +33,7 @@ _TRIVIAL_PARAM_SOURCES = frozenset(
 )
 
 
-def _compute_is_trivial(
+def _compute_trivial(
     plan: Any,
     response_model: type[Any] | None,
     permissions: list[str] | None,
@@ -239,7 +239,7 @@ class Router:
             dependencies=dep_plans,
             required_scopes=required_scopes,
             _handler_plan=plan,
-            _is_trivial=_compute_is_trivial(
+            _trivial=_compute_trivial(
                 plan,
                 response_model,
                 permissions,
@@ -601,7 +601,7 @@ class Router:
                 dependencies=merged_deps,
                 required_scopes=merged_required,
                 _handler_plan=plan,
-                _is_trivial=_compute_is_trivial(
+                _trivial=_compute_trivial(
                     plan,
                     route.response_model,
                     route.permissions,

@@ -1,6 +1,6 @@
 """Unit tests for the trivial-route fast-path classification.
 
-Verifies that ``route._is_trivial`` is True for simple async handlers that
+Verifies that ``route._trivial`` is True for simple async handlers that
 return a Response directly, and False whenever any feature that requires the
 full ``_execute_route`` path is present (DI, deps, perms, bg-tasks, etc.).
 
@@ -49,7 +49,7 @@ class TestTrivialTrue:
             return Response(b"pong")
 
         route = _get_route(app, "/ping")
-        assert route._is_trivial is True  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is True  # pyright: ignore[reportPrivateUsage]
 
     def test_request_only_param(self) -> None:
         """Handler that only takes Request is trivial."""
@@ -60,7 +60,7 @@ class TestTrivialTrue:
             return PlainTextResponse("hi")
 
         route = _get_route(app, "/hello")
-        assert route._is_trivial is True  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is True  # pyright: ignore[reportPrivateUsage]
 
     def test_path_param_only(self) -> None:
         """Handler with a single path param is trivial."""
@@ -71,7 +71,7 @@ class TestTrivialTrue:
             return Response(item_id.encode())
 
         route = _get_route(app, "/items/{item_id}")
-        assert route._is_trivial is True  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is True  # pyright: ignore[reportPrivateUsage]
 
     def test_query_param_with_default(self) -> None:
         """Handler with a plain query param default is trivial."""
@@ -82,7 +82,7 @@ class TestTrivialTrue:
             return Response(q.encode())
 
         route = _get_route(app, "/search")
-        assert route._is_trivial is True  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is True  # pyright: ignore[reportPrivateUsage]
 
     def test_json_response_return(self) -> None:
         """Handler returning JSONResponse is trivial."""
@@ -93,7 +93,7 @@ class TestTrivialTrue:
             return JSONResponse({"ok": True})
 
         route = _get_route(app, "/data")
-        assert route._is_trivial is True  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is True  # pyright: ignore[reportPrivateUsage]
 
 
 # ---------------------------------------------------------------------------
@@ -111,7 +111,7 @@ class TestTrivialFalse:
             return Response(b"sync")
 
         route = _get_route(app, "/sync")
-        assert route._is_trivial is False  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is False  # pyright: ignore[reportPrivateUsage]
 
     def test_depends_callable_not_trivial(self) -> None:
         """Routes with Depends() callable injection are NOT trivial."""
@@ -125,7 +125,7 @@ class TestTrivialFalse:
             return Response(val.encode())
 
         route = _get_route(app, "/dep")
-        assert route._is_trivial is False  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is False  # pyright: ignore[reportPrivateUsage]
 
     def test_permissions_not_trivial(self) -> None:
         """Routes with permissions are NOT trivial."""
@@ -136,7 +136,7 @@ class TestTrivialFalse:
             return Response(b"secure")
 
         route = _get_route(app, "/secure")
-        assert route._is_trivial is False  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is False  # pyright: ignore[reportPrivateUsage]
 
     def test_route_level_dependencies_not_trivial(self) -> None:
         """Routes with side-effect dependencies=[Depends(...)] are NOT trivial."""
@@ -150,7 +150,7 @@ class TestTrivialFalse:
             return Response(b"guarded")
 
         route = _get_route(app, "/guarded")
-        assert route._is_trivial is False  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is False  # pyright: ignore[reportPrivateUsage]
 
     def test_background_tasks_not_trivial(self) -> None:
         """Routes injecting BackgroundTasks are NOT trivial."""
@@ -161,7 +161,7 @@ class TestTrivialFalse:
             return Response(b"bg")
 
         route = _get_route(app, "/bg")
-        assert route._is_trivial is False  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is False  # pyright: ignore[reportPrivateUsage]
 
     def test_response_model_not_trivial(self) -> None:
         """Routes with an explicit response_model are NOT trivial."""
@@ -177,7 +177,7 @@ class TestTrivialFalse:
             return Item(name="x")
 
         route = _get_route(app, "/item")
-        assert route._is_trivial is False  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is False  # pyright: ignore[reportPrivateUsage]
 
     def test_deprecated_not_trivial(self) -> None:
         """Deprecated routes are NOT trivial (need deprecation headers)."""
@@ -188,7 +188,7 @@ class TestTrivialFalse:
             return Response(b"old")
 
         route = _get_route(app, "/old")
-        assert route._is_trivial is False  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is False  # pyright: ignore[reportPrivateUsage]
 
     def test_exclude_none_not_trivial(self) -> None:
         """Routes with response_model_exclude_none are NOT trivial."""
@@ -199,7 +199,7 @@ class TestTrivialFalse:
             return {"a": 1, "b": None}
 
         route = _get_route(app, "/filtered")
-        assert route._is_trivial is False  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is False  # pyright: ignore[reportPrivateUsage]
 
 
 # ---------------------------------------------------------------------------
@@ -219,7 +219,7 @@ class TestTrivialFastPathE2E:
             return PlainTextResponse("Hello, World!")
 
         route = _get_route(app, "/hello")
-        assert route._is_trivial is True  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is True  # pyright: ignore[reportPrivateUsage]
 
         client = TestClient(app)
         resp = client.get("/hello")
@@ -237,7 +237,7 @@ class TestTrivialFastPathE2E:
             return PlainTextResponse(request.path)
 
         route = _get_route(app, "/echo-path")
-        assert route._is_trivial is True  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is True  # pyright: ignore[reportPrivateUsage]
 
         client = TestClient(app)
         resp = client.get("/echo-path")
@@ -254,7 +254,7 @@ class TestTrivialFastPathE2E:
             return PlainTextResponse(f"hello {name}")
 
         route = _get_route(app, "/greet")
-        assert route._is_trivial is True  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is True  # pyright: ignore[reportPrivateUsage]
 
         client = TestClient(app)
         assert client.get("/greet").text == "hello world"
@@ -272,7 +272,7 @@ class TestTrivialFastPathE2E:
             raise HTTPException(status_code=403, detail="Forbidden")
 
         route = _get_route(app, "/fail")
-        assert route._is_trivial is True  # pyright: ignore[reportPrivateUsage]
+        assert route._trivial is True  # pyright: ignore[reportPrivateUsage]
 
         client = TestClient(app)
         resp = client.get("/fail")

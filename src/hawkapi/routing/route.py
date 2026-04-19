@@ -42,4 +42,4 @@ class Route:
     # no permissions, no background tasks, is async, returns a Response
     # directly, and is not deprecated. Set once at registration time by the
     # router so the per-request hot path avoids branching on all these checks.
-    _is_trivial: bool = field(default=False, repr=False)
+    _trivial: bool = field(default=False, repr=False)

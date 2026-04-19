@@ -565,7 +565,7 @@ class HawkAPI(Router):
         """Minimal hot path for routes with no DI/deps/perms/bg-tasks/deprecation.
 
         Skips all bookkeeping that _execute_route does. Only safe to call when
-        route._is_trivial is True (guaranteed by _compute_is_trivial at
+        route._trivial is True (guaranteed by _compute_trivial at
         registration time). Handles Request-only and no-arg handlers via the
         pre-computed plan.kwargs_specs via ParamSource.REQUEST detection.
         """
@@ -634,7 +634,7 @@ class HawkAPI(Router):
 
         # Minimal HEAD handling: zero out the body but keep content-length.
         # StreamingResponse is not a Response subclass — fall back to the
-        # general path if somehow one slips through (guards _is_trivial calc).
+        # general path if somehow one slips through (guards _trivial calc).
         if isinstance(response, StreamingResponse):
             await self._execute_route(scope, receive, send, route, plan, request)
             return
@@ -911,7 +911,7 @@ class HawkAPI(Router):
         # stack, background tasks, HEAD special-case, deprecation headers,
         # permissions, timeout wrapping). The flag is computed once at
         # registration time — no per-request isinstance/attribute checks.
-        if route._is_trivial:  # pyright: ignore[reportPrivateUsage]
+        if route._trivial:  # pyright: ignore[reportPrivateUsage]
             await self._execute_trivial_route(scope, receive, send, route, plan, request)
             return
 
