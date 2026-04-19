@@ -38,3 +38,8 @@ class Route:
     dependencies: tuple[DepCallablePlan, ...] = ()
     required_scopes: tuple[str, ...] = ()
     _handler_plan: HandlerPlan | None = field(default=None, repr=False)
+    # Pre-computed fast-path flag: True when the route has no DI, no deps,
+    # no permissions, no background tasks, is async, returns a Response
+    # directly, and is not deprecated. Set once at registration time by the
+    # router so the per-request hot path avoids branching on all these checks.
+    _is_trivial: bool = field(default=False, repr=False)

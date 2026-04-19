@@ -91,6 +91,12 @@ def main(argv: list[str] | None = None) -> None:
         default=True,
         help="Enable/disable auto-reload",
     )
+    dev_parser.add_argument(
+        "--no-uvloop",
+        action="store_true",
+        default=False,
+        help="Disable uvloop even when it is installed (use the default asyncio event loop)",
+    )
 
     # `hawkapi diff` subcommand
     diff_parser = subparsers.add_parser(
@@ -254,7 +260,14 @@ def _run_doctor(args: argparse.Namespace) -> int:
 
 
 def _run_dev(args: argparse.Namespace) -> None:
-    """Run the development server using uvicorn."""
+    """Run the development server using uvicorn.
+
+    uvloop is activated automatically when available unless ``--no-uvloop`` is
+    passed. This installs ``uvloop.EventLoopPolicy`` before uvicorn starts,
+    giving a measurable throughput improvement on Linux/macOS at no extra cost.
+    """
+    import asyncio
+
     try:
         import uvicorn  # pyright: ignore[reportMissingImports]
     except ImportError:
@@ -264,6 +277,16 @@ def _run_dev(args: argparse.Namespace) -> None:
             file=sys.stderr,
         )
         sys.exit(1)
+
+    no_uvloop: bool = getattr(args, "no_uvloop", False)
+    if not no_uvloop:
+        try:
+            import uvloop  # type: ignore[import-untyped]  # noqa: PLC0415
+
+            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())  # pyright: ignore[reportUnknownMemberType,reportUnknownArgumentType]
+            print("uvloop event loop policy active")
+        except ImportError:
+            pass  # uvloop not installed — fall back to default asyncio loop
 
     print(f"Starting HawkAPI dev server: {args.app}")
     uvicorn.run(  # pyright: ignore[reportUnknownMemberType]

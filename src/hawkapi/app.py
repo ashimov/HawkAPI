@@ -553,6 +553,99 @@ class HawkAPI(Router):
 
         return _route_app
 
+    async def _execute_trivial_route(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+        route: Route,
+        plan: Any,
+        request: Request,
+    ) -> None:
+        """Minimal hot path for routes with no DI/deps/perms/bg-tasks/deprecation.
+
+        Skips all bookkeeping that _execute_route does. Only safe to call when
+        route._is_trivial is True (guaranteed by _compute_is_trivial at
+        registration time). Handles Request-only and no-arg handlers via the
+        pre-computed plan.kwargs_specs via ParamSource.REQUEST detection.
+        """
+        # Build kwargs from plan — trivial routes have only REQUEST or
+        # IMPLICIT_PATH/IMPLICIT_QUERY/PATH params, no DI, no body, no cleanup.
+        # Coercion (e.g. int query params) can raise RequestValidationError,
+        # so the entire kwargs-build + handler call is inside the try block.
+        from hawkapi.di.param_plan import ParamSource  # noqa: PLC0415
+        from hawkapi.di.resolver import (
+            _coerce_fast,  # noqa: PLC0415  # pyright: ignore[reportPrivateUsage]
+        )
+
+        try:
+            kwargs: dict[str, Any] = {}
+            if plan is not None:
+                for spec in plan.params:
+                    src = spec.source
+                    if src is ParamSource.REQUEST:
+                        kwargs[spec.name] = request
+                    elif src is ParamSource.PATH or src is ParamSource.IMPLICIT_PATH:
+                        value = request.path_params.get(spec.alias or spec.name)
+                        if value is None and spec.has_marker_default:
+                            mdf = spec.marker_default_factory
+                            value = mdf() if mdf is not None else spec.marker_default
+                        kwargs[spec.name] = value
+                    elif src is ParamSource.QUERY or src is ParamSource.IMPLICIT_QUERY:
+                        qval = request.query_params.get(spec.alias or spec.name)
+                        if qval is not None:
+                            kwargs[spec.name] = _coerce_fast(qval, spec.coerce_type)
+                        elif spec.has_marker_default:
+                            mdf = spec.marker_default_factory
+                            kwargs[spec.name] = mdf() if mdf is not None else spec.marker_default
+                        elif spec.has_param_default:
+                            kwargs[spec.name] = spec.param_default
+                    # BODY, DI, cleanup, bg-tasks cannot appear on trivial routes
+
+            coro = route.handler(**kwargs)
+            if self._request_timeout is not None:
+                handler_result = await asyncio.wait_for(coro, timeout=self._request_timeout)
+            else:
+                handler_result = await coro
+            response: Response | JSONResponse = self._build_response(
+                handler_result,
+                route.status_code,
+                None,  # response_model is always None on trivial routes
+            )
+        except TimeoutError:
+            response = Response(
+                content=encode_response(
+                    {
+                        "type": "https://hawkapi.ashimov.com/errors/timeout",
+                        "title": "Request Timeout",
+                        "status": 504,
+                        "detail": f"Handler exceeded {self._request_timeout}s timeout",
+                    }
+                ),
+                status_code=504,
+                content_type="application/problem+json",
+            )
+        except RequestValidationError as exc:
+            response = self._build_validation_error_response(exc)
+        except HTTPException as exc:
+            response = exc.to_response()
+        except Exception as exc:
+            response = await self._handle_exception(request, exc)
+
+        # Minimal HEAD handling: zero out the body but keep content-length.
+        # StreamingResponse is not a Response subclass — fall back to the
+        # general path if somehow one slips through (guards _is_trivial calc).
+        if isinstance(response, StreamingResponse):
+            await self._execute_route(scope, receive, send, route, plan, request)
+            return
+
+        if scope["method"] == "HEAD" and hasattr(response, "body"):
+            original_len = str(len(response.body))
+            response.body = b""
+            response._headers["content-length"] = original_len  # pyright: ignore[reportPrivateUsage]
+
+        await response(scope, receive, send)
+
     async def _execute_route(
         self,
         scope: Scope,
@@ -813,6 +906,15 @@ class HawkAPI(Router):
             path_params=result.params,
             max_body_size=self.max_body_size,
         )
+
+        # Fast path: trivial routes skip all bookkeeping (DI scope, cleanup
+        # stack, background tasks, HEAD special-case, deprecation headers,
+        # permissions, timeout wrapping). The flag is computed once at
+        # registration time — no per-request isinstance/attribute checks.
+        if route._is_trivial:  # pyright: ignore[reportPrivateUsage]
+            await self._execute_trivial_route(scope, receive, send, route, plan, request)
+            return
+
         await self._execute_route(scope, receive, send, route, plan, request)
 
     def _build_response(

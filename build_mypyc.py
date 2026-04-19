@@ -38,6 +38,17 @@ HOT_MODULES: tuple[str, ...] = (
     "src/hawkapi/routing/route.py",
     "src/hawkapi/routing/param_converters.py",
     "src/hawkapi/middleware/_pipeline.py",
+    # Added in Wave 3: router registration path (hot at startup, also called
+    # on include_router) and the plan-based dependency resolver (hot per
+    # request on every non-trivial route). Both are pure-typed with no
+    # subclassing constraints from user code, so mypyc can compile them freely.
+    "src/hawkapi/routing/router.py",
+    "src/hawkapi/di/resolver.py",
+    # NOTE: app.py is intentionally EXCLUDED — HawkAPI(Router) is subclassed
+    # by user code and mypyc does not allow interpreted classes to inherit from
+    # compiled ones at runtime.
+    # NOTE: requests/request.py is intentionally EXCLUDED — Request is also
+    # subclassed by user code via TestClient and custom request overrides.
 )
 
 

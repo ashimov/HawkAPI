@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 from hawkapi._types import ASGIApp, RouteHandler
 from hawkapi.di.depends import Depends
 from hawkapi.di.param_plan import (
+    ParamSource,
     build_handler_plan,
     build_side_effect_dep_plans,
     collect_route_scopes,
@@ -18,6 +19,73 @@ from hawkapi.di.param_plan import (
 )
 from hawkapi.routing._radix_tree import RadixTree
 from hawkapi.routing.route import Route
+
+# Parameter sources that the trivial fast path can resolve without any
+# extra machinery. Any other source requires the full _execute_route path.
+_TRIVIAL_PARAM_SOURCES = frozenset(
+    (
+        ParamSource.REQUEST,
+        ParamSource.PATH,
+        ParamSource.IMPLICIT_PATH,
+        ParamSource.QUERY,
+        ParamSource.IMPLICIT_QUERY,
+    )
+)
+
+
+def _compute_is_trivial(
+    plan: Any,
+    response_model: type[Any] | None,
+    permissions: list[str] | None,
+    dependencies: tuple[Any, ...],
+    deprecated: bool,
+    middleware: Any,
+    response_model_exclude_none: bool = False,
+    response_model_exclude_unset: bool = False,
+    response_model_exclude_defaults: bool = False,
+) -> bool:
+    """Return True when a route qualifies for the zero-overhead fast path.
+
+    A route is trivial when ALL of the following hold at registration time:
+    - async handler (plan.is_async)
+    - no DI scope needed (not plan.needs_di_scope)
+    - no DEPENDS_CALLABLE params (no arbitrary callable injection)
+    - no cleanup generator deps
+    - no permissions configured
+    - no side-effect dependencies
+    - no background tasks injected
+    - no response_model (handler returns a Response subclass directly)
+    - no response_model_exclude_* flags (exclude filters require full path)
+    - not deprecated
+    - no per-route middleware
+    - all param sources are in _TRIVIAL_PARAM_SOURCES
+    The fast path in _core_handler_inner then skips all the bookkeeping that
+    only matters when these features are in use.
+    """
+    if plan is None:
+        return False
+    if not plan.is_async:
+        return False
+    if plan.needs_di_scope:
+        return False
+    if plan.has_cleanup_deps:
+        return False
+    if plan.has_background_tasks:
+        return False
+    if permissions:
+        return False
+    if dependencies:
+        return False
+    if response_model is not None:
+        return False
+    if response_model_exclude_none or response_model_exclude_unset or response_model_exclude_defaults:  # noqa: E501
+        return False
+    if deprecated:
+        return False
+    if middleware:
+        return False
+    # Verify every param can be resolved by the trivial path
+    return all(spec.source in _TRIVIAL_PARAM_SOURCES for spec in plan.params)
 
 
 def _infer_response_model(handler: Any) -> type[Any] | None:
@@ -147,6 +215,7 @@ class Router:
         dep_plans = build_side_effect_dep_plans(merged_deps)
         required_scopes = collect_route_scopes(list(merged_deps), handler)
 
+        mw_tuple = tuple(middleware) if middleware else None
         route = Route(
             path=full_path,
             handler=handler,
@@ -166,10 +235,21 @@ class Router:
             deprecation_link=deprecation_link,
             version=version,
             permissions=permissions,
-            middleware=tuple(middleware) if middleware else None,
+            middleware=mw_tuple,
             dependencies=dep_plans,
             required_scopes=required_scopes,
             _handler_plan=plan,
+            _is_trivial=_compute_is_trivial(
+                plan,
+                response_model,
+                permissions,
+                dep_plans,
+                deprecated,
+                mw_tuple,
+                response_model_exclude_none=response_model_exclude_none,
+                response_model_exclude_unset=response_model_exclude_unset,
+                response_model_exclude_defaults=response_model_exclude_defaults,
+            ),
         )
         self._tree.insert(route)
         return route
@@ -500,6 +580,7 @@ class Router:
                     set(collect_route_scopes(list(self._dependencies))) | set(route.required_scopes)
                 )
             )
+            merged_deps = parent_dep_plans + route.dependencies
             merged_route = Route(
                 path=full_path,
                 handler=route.handler,
@@ -517,9 +598,20 @@ class Router:
                 version=route.version,
                 permissions=route.permissions,
                 middleware=route.middleware,
-                dependencies=parent_dep_plans + route.dependencies,
+                dependencies=merged_deps,
                 required_scopes=merged_required,
                 _handler_plan=plan,
+                _is_trivial=_compute_is_trivial(
+                    plan,
+                    route.response_model,
+                    route.permissions,
+                    merged_deps,
+                    route.deprecated,
+                    route.middleware,
+                    response_model_exclude_none=route.response_model_exclude_none,
+                    response_model_exclude_unset=route.response_model_exclude_unset,
+                    response_model_exclude_defaults=route.response_model_exclude_defaults,
+                ),
             )
             self._tree.insert(merged_route)
 
