@@ -31,6 +31,7 @@ class ParamSource(enum.IntEnum):
     BACKGROUND_TASKS = 9
     IMPLICIT_QUERY = 10
     IMPLICIT_PATH = 11
+    SECURITY_SCOPES = 12
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,6 +173,18 @@ def _build_dep_callable_plan(dep: Any) -> DepCallablePlan:
             continue
 
         dep_annotation = dep_hints.get(dep_name, dep_param.annotation)
+
+        # Detect SecurityScopes injection BEFORE the generic marker check so it
+        # is never mistakenly treated as a query/body param.
+        base_ann = _get_base_type(dep_annotation)
+        if (
+            isinstance(base_ann, type)
+            and base_ann.__name__ == "SecurityScopes"
+            and base_ann.__module__ == "hawkapi.security.scopes"
+        ):
+            params.append(ParamSpec(name=dep_name, source=ParamSource.SECURITY_SCOPES))
+            continue
+
         sub_marker = _get_annotation_marker(dep_annotation)
 
         # Check Annotated[..., Depends(...)]
@@ -240,6 +253,46 @@ def build_side_effect_dep_plans(
             )
         plans.append(_build_dep_callable_plan(dep.dependency))
     return tuple(plans)
+
+
+def collect_route_scopes(
+    deps: Sequence[Depends] | None,
+    handler: Any = None,
+) -> tuple[str, ...]:
+    """Aggregate required scopes from Security() markers on deps and handler.
+
+    Walks every Security instance in the deps list (and optionally the
+    handler's signature) collecting .scopes attributes. Returns a sorted
+    deduplicated tuple of scope strings. Empty input -> empty tuple.
+    """
+    from hawkapi.security.scopes import Security  # noqa: PLC0415
+
+    scopes_set: set[str] = set()
+
+    if deps:
+        for dep in deps:
+            if isinstance(dep, Security):
+                scopes_set.update(dep.scopes)
+
+    if handler is not None:
+        try:
+            sig = inspect.signature(handler)
+        except (ValueError, TypeError):
+            sig = None
+        if sig is not None:
+            for param in sig.parameters.values():
+                if isinstance(param.default, Security):
+                    scopes_set.update(param.default.scopes)
+            try:
+                hints = get_type_hints(handler, include_extras=True)
+            except Exception:
+                hints = getattr(handler, "__annotations__", {})
+            for ann in hints.values():
+                marker = _get_annotation_marker(ann)
+                if isinstance(marker, Security):
+                    scopes_set.update(marker.scopes)
+
+    return tuple(sorted(scopes_set))
 
 
 # ---------------------------------------------------------------------------
@@ -374,6 +427,20 @@ def build_handler_plan(
                         param_default=pdefault,
                     )
                 )
+
+        elif isinstance(param.default, Depends) and param.default.dependency is not None:
+            # Support the `param: T = Depends(func)` form in handler signatures.
+            dep_plan = _build_dep_callable_plan(param.default.dependency)
+            if dep_plan.is_generator or dep_plan.is_async_generator:
+                has_cleanup = True
+            params.append(
+                ParamSpec(
+                    name=name,
+                    source=ParamSource.DEPENDS_CALLABLE,
+                    base_type=base_type,
+                    dep_plan=dep_plan,
+                )
+            )
 
         elif isinstance(marker, Body) or _is_body_type(base_type):
             needs_body = True

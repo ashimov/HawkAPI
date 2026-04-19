@@ -71,6 +71,8 @@ async def _execute_dep_plan(
     dep_plan: DepCallablePlan,
     request: Request,
     cleanup_stack: list[Any],
+    *,
+    security_scopes: Any = None,
 ) -> Any:
     """Execute a pre-computed Depends() callable plan."""
     dep_kwargs: dict[str, Any] = {}
@@ -78,8 +80,16 @@ async def _execute_dep_plan(
     for spec in dep_plan.params:
         if spec.source is ParamSource.REQUEST:
             dep_kwargs[spec.name] = request
+        elif spec.source is ParamSource.SECURITY_SCOPES:
+            from hawkapi.security.scopes import SecurityScopes  # noqa: PLC0415
+
+            dep_kwargs[spec.name] = (
+                security_scopes if security_scopes is not None else SecurityScopes()
+            )
         elif spec.source is ParamSource.DEPENDS_CALLABLE and spec.dep_plan is not None:
-            dep_kwargs[spec.name] = await _execute_dep_plan(spec.dep_plan, request, cleanup_stack)
+            dep_kwargs[spec.name] = await _execute_dep_plan(
+                spec.dep_plan, request, cleanup_stack, security_scopes=security_scopes
+            )
         elif spec.source is ParamSource.IMPLICIT_QUERY and spec.has_param_default:
             dep_kwargs[spec.name] = spec.param_default
 
@@ -111,6 +121,8 @@ async def resolve_from_plan(
     request: Request,
     scope: Scope | None,
     container: Container | None,
+    *,
+    security_scopes: Any = None,
 ) -> tuple[dict[str, Any], list[Any]]:
     """Resolve handler dependencies using pre-computed plan.
 
@@ -177,6 +189,7 @@ async def resolve_from_plan(
                 spec.dep_plan,  # type: ignore[arg-type]
                 request,
                 cleanup_stack,
+                security_scopes=security_scopes,
             )
 
         elif source is ParamSource.DEPENDS_CONTAINER:
@@ -321,6 +334,8 @@ async def resolve_dependencies(
     request: Request,
     scope: Scope | None,
     container: Container | None,
+    *,
+    security_scopes: Any = None,
 ) -> tuple[dict[str, Any], list[Any]]:
     """Resolve all dependencies for a handler from request + DI container.
 

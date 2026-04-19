@@ -36,4 +36,5 @@ class Route:
     permissions: list[str] | None = None
     middleware: tuple[type[Middleware] | tuple[type[Middleware], dict[str, Any]], ...] | None = None
     dependencies: tuple[DepCallablePlan, ...] = ()
+    required_scopes: tuple[str, ...] = ()
     _handler_plan: HandlerPlan | None = field(default=None, repr=False)

@@ -13,6 +13,7 @@ from hawkapi.di.depends import Depends
 from hawkapi.di.param_plan import (
     build_handler_plan,
     build_side_effect_dep_plans,
+    collect_route_scopes,
     extract_path_param_names,
 )
 from hawkapi.routing._radix_tree import RadixTree
@@ -84,6 +85,7 @@ class Router:
         # Router-level deps run before route-level deps.
         merged_deps = self._dependencies + (tuple(dependencies) if dependencies else ())
         dep_plans = build_side_effect_dep_plans(merged_deps)
+        required_scopes = collect_route_scopes(list(merged_deps), handler)
 
         route = Route(
             path=full_path,
@@ -106,6 +108,7 @@ class Router:
             permissions=permissions,
             middleware=tuple(middleware) if middleware else None,
             dependencies=dep_plans,
+            required_scopes=required_scopes,
             _handler_plan=plan,
         )
         self._tree.insert(route)
@@ -432,6 +435,11 @@ class Router:
             # Parent router's side-effect deps are prepended to each merged
             # sub-route's existing dep chain (parent outer → child inner).
             parent_dep_plans = build_side_effect_dep_plans(self._dependencies)
+            merged_required = tuple(
+                sorted(
+                    set(collect_route_scopes(list(self._dependencies))) | set(route.required_scopes)
+                )
+            )
             merged_route = Route(
                 path=full_path,
                 handler=route.handler,
@@ -450,6 +458,7 @@ class Router:
                 permissions=route.permissions,
                 middleware=route.middleware,
                 dependencies=parent_dep_plans + route.dependencies,
+                required_scopes=merged_required,
                 _handler_plan=plan,
             )
             self._tree.insert(merged_route)

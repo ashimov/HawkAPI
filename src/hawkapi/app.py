@@ -28,6 +28,7 @@ from hawkapi.responses.streaming import StreamingResponse
 from hawkapi.routing.route import Route
 from hawkapi.routing.router import Router
 from hawkapi.security.api_key import MissingCredentialError as _MissingCred
+from hawkapi.security.scopes import SecurityScopes as _SecurityScopes
 from hawkapi.serialization.encoder import encode_response
 from hawkapi.validation.errors import (
     ProblemDetail,
@@ -441,13 +442,18 @@ class HawkAPI(Router):
             if plan is None or plan.needs_di_scope:
                 di_scope = self.container.scope()
                 await di_scope.__aenter__()
+            security_scopes = _SecurityScopes(scopes=route.required_scopes)
             if plan is not None:
                 kwargs, cleanup_stack = await resolve_from_plan(
-                    plan, request, di_scope, self.container
+                    plan, request, di_scope, self.container, security_scopes=security_scopes
                 )
             else:
                 kwargs, cleanup_stack = await resolve_dependencies(
-                    route.handler, request, di_scope, self.container
+                    route.handler,
+                    request,
+                    di_scope,
+                    self.container,
+                    security_scopes=security_scopes,
                 )
             if plan is not None and plan.has_background_tasks and plan.bg_tasks_param_name:
                 background_tasks = kwargs.get(plan.bg_tasks_param_name)
@@ -463,7 +469,9 @@ class HawkAPI(Router):
                 from hawkapi.di.resolver import _execute_dep_plan  # noqa: PLC0415
 
                 for dep_plan in route.dependencies:
-                    await _execute_dep_plan(dep_plan, request, cleanup_stack)
+                    await _execute_dep_plan(
+                        dep_plan, request, cleanup_stack, security_scopes=security_scopes
+                    )
             if plan is not None:
                 is_async = plan.is_async
             else:

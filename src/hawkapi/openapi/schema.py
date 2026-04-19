@@ -226,16 +226,27 @@ def _build_operation(
         }
 
     # Detect security schemes from Depends(SecurityScheme) markers
+    # (direct on handler OR nested in sub-dependencies).
     route_security: dict[str, Any] = {}
     security_requirements: list[dict[str, list[str]]] = []
     for name, param in sig.parameters.items():
         annotation = hints.get(name, param.annotation)
         depends = _get_depends_marker(annotation)
+        # Also detect the `param: T = Depends(func)` form.
+        if depends is None and isinstance(param.default, Depends):
+            depends = param.default
         if depends is not None and isinstance(depends.dependency, SecurityScheme):
             scheme_instance = depends.dependency
             scheme_name = type(scheme_instance).__name__
             route_security[scheme_name] = scheme_instance.openapi_scheme
             security_requirements.append({scheme_name: []})
+        elif depends is not None and depends.dependency is not None:
+            # Recursively scan sub-dependency for SecurityScheme.
+            _collect_security_from_dep(depends.dependency, route_security, security_requirements)
+
+    if security_requirements and route.required_scopes:
+        first_scheme_name = next(iter(security_requirements[0].keys()))
+        security_requirements[0] = {first_scheme_name: list(route.required_scopes)}
 
     if security_requirements:
         operation["security"] = security_requirements
@@ -331,3 +342,46 @@ def _extract_path_params(path: str) -> set[str]:
     import re
 
     return set(re.findall(r"\{(\w+)(?::\w+)?\}", path))
+
+
+def _collect_security_from_dep(
+    dep: Any,
+    route_security: dict[str, Any],
+    security_requirements: list[dict[str, list[str]]],
+    *,
+    _seen: frozenset[int] | None = None,
+) -> None:
+    """Recursively walk a Depends callable looking for SecurityScheme instances."""
+    seen = _seen or frozenset()
+    dep_id = id(dep)
+    if dep_id in seen:
+        return
+    seen = seen | {dep_id}
+
+    target = dep.__call__ if callable(dep) and not inspect.isfunction(dep) else dep
+    try:
+        sub_hints = get_type_hints(target, include_extras=True)
+    except Exception:
+        sub_hints = getattr(target, "__annotations__", {})
+    try:
+        sub_sig = inspect.signature(target)
+    except (ValueError, TypeError):
+        return
+
+    for param_name, param in sub_sig.parameters.items():
+        ann = sub_hints.get(param_name, param.annotation)
+        sub_dep = _get_depends_marker(ann)
+        if sub_dep is None and isinstance(param.default, Depends):
+            sub_dep = param.default
+        if sub_dep is None:
+            continue
+        if isinstance(sub_dep.dependency, SecurityScheme):
+            scheme_instance = sub_dep.dependency
+            scheme_name = type(scheme_instance).__name__
+            if scheme_name not in route_security:
+                route_security[scheme_name] = scheme_instance.openapi_scheme
+                security_requirements.append({scheme_name: []})
+        elif sub_dep.dependency is not None:
+            _collect_security_from_dep(
+                sub_dep.dependency, route_security, security_requirements, _seen=seen
+            )

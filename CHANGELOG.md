@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `hawkapi.status` module — HTTP and WebSocket status-code constants (FastAPI parity)
 - Route-level `response_model_exclude_none`, `response_model_exclude_unset`, `response_model_exclude_defaults` flags — recursive filtering over msgspec Structs and Pydantic models, zero-overhead when all flags are False (FastAPI parity, DX Gap #3)
 - Route-level and router-level `dependencies=[Depends(...)]` kwarg — side-effect dependencies (auth guards, audit writers) that run before the handler and whose return values are discarded; sub-dependencies resolved via normal DI; `HTTPException` short-circuits the request (FastAPI parity, DX Gap #2)
+- OAuth2 scopes enforcement scaffolding: `Security(dependency, *, scopes=[...])` marker, `SecurityScopes` injected context, per-route scope aggregation, and OpenAPI `operation.security` scope reflection (FastAPI parity, DX Gap #4)
 
 ## [0.1.2] - 2026-04-05
 
