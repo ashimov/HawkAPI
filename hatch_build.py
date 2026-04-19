@@ -64,9 +64,7 @@ class MypycBuildHook(BuildHookInterface[Any]):
             force_include[absolute_path] = relative_target
 
 
-def _run_build_ext(
-    project_root: str, extensions: list[Any]
-) -> list[tuple[str, str]]:
+def _run_build_ext(project_root: str, extensions: list[Any]) -> list[tuple[str, str]]:
     """Drive setuptools' ``build_ext --inplace`` and return compiled .so paths.
 
     Returns a list of ``(absolute_source_path, wheel_relative_target)`` pairs

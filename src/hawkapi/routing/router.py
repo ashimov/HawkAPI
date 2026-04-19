@@ -78,7 +78,11 @@ def _compute_trivial(
         return False
     if response_model is not None:
         return False
-    if response_model_exclude_none or response_model_exclude_unset or response_model_exclude_defaults:  # noqa: E501
+    if (
+        response_model_exclude_none
+        or response_model_exclude_unset
+        or response_model_exclude_defaults
+    ):  # noqa: E501
         return False
     if deprecated:
         return False

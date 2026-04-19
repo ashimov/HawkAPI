@@ -135,9 +135,7 @@ def _spawn_server(framework: str, port: int) -> subprocess.Popen[bytes]:
     )
 
 
-_LATENCY_RE = re.compile(
-    r"Latency\s+([\d.]+)(\w+)\s+([\d.]+)(\w+)\s+([\d.]+)(\w+)\s+([\d.]+)%"
-)
+_LATENCY_RE = re.compile(r"Latency\s+([\d.]+)(\w+)\s+([\d.]+)(\w+)\s+([\d.]+)(\w+)\s+([\d.]+)%")
 _REQ_RE = re.compile(r"Requests/sec:\s+([\d.]+)")
 _TRANSFER_RE = re.compile(r"Transfer/sec:\s+([\d.]+\w+)")
 _LATENCY_DIST_RE = re.compile(r"\s+(\d+)%\s+([\d.]+)(\w+)")
@@ -191,9 +189,7 @@ def _wrk_lua_script(scenario: Scenario) -> str:
     """Build a Lua script for non-GET wrk runs."""
     if scenario.method == "GET":
         return ""
-    headers = "\n".join(
-        f'wrk.headers["{k}"] = "{v}"' for k, v in (scenario.headers or {}).items()
-    )
+    headers = "\n".join(f'wrk.headers["{k}"] = "{v}"' for k, v in (scenario.headers or {}).items())
     body = (scenario.body or "").replace('"', '\\"')
     return f"""
 wrk.method = "{scenario.method}"

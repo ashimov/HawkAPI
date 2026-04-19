@@ -81,7 +81,9 @@ def bench_serialization():
     hawk_struct_time = time.perf_counter() - start
 
     print(f"Small Struct:")
-    print(f"  HawkAPI (msgspec): {hawk_struct_time:.3f}s ({iterations / hawk_struct_time:,.0f} ops/sec)")
+    print(
+        f"  HawkAPI (msgspec): {hawk_struct_time:.3f}s ({iterations / hawk_struct_time:,.0f} ops/sec)"
+    )
     print(f"  Speedup vs dict:   {hawk_time / hawk_struct_time:.1f}x\n")
 
     # --- Medium list (100 items) ---

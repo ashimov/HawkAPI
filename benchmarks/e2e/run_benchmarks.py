@@ -106,9 +106,7 @@ def main() -> None:
         print(f"\n--- {fw_name} ---")
         for scenario in scenarios:
             scope = _make_scope(scenario["method"], scenario["path"], scenario["body"])
-            elapsed = loop.run_until_complete(
-                _bench_asgi(app, scope, scenario["body"], iterations)
-            )
+            elapsed = loop.run_until_complete(_bench_asgi(app, scope, scenario["body"], iterations))
             per_req_us = (elapsed / iterations) * 1_000_000
             rps = iterations / elapsed
             results[fw_name][scenario["name"]] = per_req_us

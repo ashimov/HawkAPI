@@ -36,14 +36,14 @@ def main() -> None:
     print("=" * 40)
     for mod in modules:
         avg = bench_import_time(mod)
-        print(f"  {mod:<30s} {avg*1000:.1f}ms")
+        print(f"  {mod:<30s} {avg * 1000:.1f}ms")
     print()
 
     # Compare with serverless-relevant: just the core
     print("Comparison:")
     for mod in ["json", "msgspec"]:
         avg = bench_import_time(mod)
-        print(f"  {mod:<30s} {avg*1000:.1f}ms")
+        print(f"  {mod:<30s} {avg * 1000:.1f}ms")
 
 
 if __name__ == "__main__":

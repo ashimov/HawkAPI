@@ -12,6 +12,7 @@ from hawkapi.routing.route import Route
 def _make_handler():
     async def handler():
         pass
+
     return handler
 
 
@@ -19,56 +20,79 @@ def bench_routing():
     tree = RadixTree()
 
     # Register realistic routes (REST API pattern)
-    prefixes = ["users", "posts", "comments", "tags", "categories", "products", "orders", "payments"]
+    prefixes = [
+        "users",
+        "posts",
+        "comments",
+        "tags",
+        "categories",
+        "products",
+        "orders",
+        "payments",
+    ]
     routes_registered = 0
 
     for prefix in prefixes:
-        tree.insert(Route(
-            path=f"/{prefix}",
-            handler=_make_handler(),
-            methods=frozenset({"GET", "HEAD"}),
-            name=f"list_{prefix}",
-        ))
-        tree.insert(Route(
-            path=f"/{prefix}",
-            handler=_make_handler(),
-            methods=frozenset({"POST"}),
-            name=f"create_{prefix}",
-        ))
-        tree.insert(Route(
-            path=f"/{prefix}/{{id:int}}",
-            handler=_make_handler(),
-            methods=frozenset({"GET", "HEAD"}),
-            name=f"get_{prefix}",
-        ))
-        tree.insert(Route(
-            path=f"/{prefix}/{{id:int}}",
-            handler=_make_handler(),
-            methods=frozenset({"PUT"}),
-            name=f"update_{prefix}",
-        ))
-        tree.insert(Route(
-            path=f"/{prefix}/{{id:int}}",
-            handler=_make_handler(),
-            methods=frozenset({"DELETE"}),
-            name=f"delete_{prefix}",
-        ))
+        tree.insert(
+            Route(
+                path=f"/{prefix}",
+                handler=_make_handler(),
+                methods=frozenset({"GET", "HEAD"}),
+                name=f"list_{prefix}",
+            )
+        )
+        tree.insert(
+            Route(
+                path=f"/{prefix}",
+                handler=_make_handler(),
+                methods=frozenset({"POST"}),
+                name=f"create_{prefix}",
+            )
+        )
+        tree.insert(
+            Route(
+                path=f"/{prefix}/{{id:int}}",
+                handler=_make_handler(),
+                methods=frozenset({"GET", "HEAD"}),
+                name=f"get_{prefix}",
+            )
+        )
+        tree.insert(
+            Route(
+                path=f"/{prefix}/{{id:int}}",
+                handler=_make_handler(),
+                methods=frozenset({"PUT"}),
+                name=f"update_{prefix}",
+            )
+        )
+        tree.insert(
+            Route(
+                path=f"/{prefix}/{{id:int}}",
+                handler=_make_handler(),
+                methods=frozenset({"DELETE"}),
+                name=f"delete_{prefix}",
+            )
+        )
         routes_registered += 5
 
     # Also add some nested routes
     for prefix in prefixes[:4]:
-        tree.insert(Route(
-            path=f"/{prefix}/{{id:int}}/comments",
-            handler=_make_handler(),
-            methods=frozenset({"GET", "HEAD"}),
-            name=f"{prefix}_comments",
-        ))
-        tree.insert(Route(
-            path=f"/{prefix}/{{id:int}}/comments/{{comment_id:int}}",
-            handler=_make_handler(),
-            methods=frozenset({"GET", "HEAD"}),
-            name=f"{prefix}_comment_detail",
-        ))
+        tree.insert(
+            Route(
+                path=f"/{prefix}/{{id:int}}/comments",
+                handler=_make_handler(),
+                methods=frozenset({"GET", "HEAD"}),
+                name=f"{prefix}_comments",
+            )
+        )
+        tree.insert(
+            Route(
+                path=f"/{prefix}/{{id:int}}/comments/{{comment_id:int}}",
+                handler=_make_handler(),
+                methods=frozenset({"GET", "HEAD"}),
+                name=f"{prefix}_comment_detail",
+            )
+        )
         routes_registered += 2
 
     print(f"Registered {routes_registered} routes across {len(prefixes)} resources\n")

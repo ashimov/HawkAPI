@@ -43,7 +43,11 @@ def bench_request_response():
 
     body = msgspec.json.encode({"name": "Widget", "price": 9.99})
     _bench_endpoint(
-        app_body, "POST", "/items", body, "POST + body decode + JSON response",
+        app_body,
+        "POST",
+        "/items",
+        body,
+        "POST + body decode + JSON response",
         extra_headers=[(b"content-type", b"application/json")],
     )
 
