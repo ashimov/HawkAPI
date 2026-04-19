@@ -79,7 +79,7 @@ if TYPE_CHECKING:
     from hawkapi.validation.constraints import Body, Cookie, Header, Path, Query
     from hawkapi.websocket import WebSocket, WebSocketDisconnect
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 # Lazy imports — loaded on first access for faster cold start
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {

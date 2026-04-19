@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-04-19
+
 ### Added
 
 - `app.mount_grpc(servicer, add_to_server=..., port=50051)` — thin gRPC integration over `grpc.aio`: ASGI lifespan-tied server lifecycle, built-in `HawkAPIObservabilityInterceptor` (structured logging + Prometheus metrics), context injection (`context.hawkapi_app`, `context.hawkapi_request_id`), reflection toggle with `reflection_service_names`, TLS passthrough via `ssl_credentials`, port-merge for multi-servicer setups; zero runtime deps on default path (`grpcio` imported lazily) (Tier 2 gRPC thin mount)
