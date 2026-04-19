@@ -51,8 +51,14 @@ jobs:
           CIBW_SKIP: "pp* cp36-* cp37-* cp38-* cp39-* cp310-* cp311-* *-musllinux_*"
           CIBW_ENVIRONMENT: "HAWKAPI_BUILD_MYPYC=1"
           CIBW_BUILD_VERBOSITY: "1"
-          CIBW_TEST_REQUIRES: "pytest pytest-asyncio msgspec"
-          CIBW_TEST_COMMAND: "pytest {project}/tests/unit -x --tb=short -q"
+          # Smoke-test: verify the wheel imports and the compiled extension
+          # loads. Full functional coverage runs in ci.yml on the source tree;
+          # replicating it here would require every optional runtime dep
+          # (libcst, grpc, pydantic, fakeredis, prometheus_client, structlog)
+          # inside the cibuildwheel venv, which is out of scope.
+          CIBW_TEST_REQUIRES: "msgspec"
+          CIBW_TEST_COMMAND: >-
+            python -c "import hawkapi; from hawkapi import HawkAPI; app = HawkAPI(); assert app is not None; print('hawkapi', hawkapi.__version__, 'imports OK')"
           # aarch64 cross-builds via QEMU are slow; skip in-emulator tests to
           # keep wall time under the 6h job limit. Native arches still test.
           CIBW_TEST_SKIP: "*-linux_aarch64"
