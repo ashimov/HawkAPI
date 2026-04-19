@@ -456,6 +456,14 @@ class HawkAPI(Router):
                     if isinstance(v, BackgroundTasks):
                         background_tasks = v
                         break
+            # Run side-effect ``dependencies=[Depends(...)]`` before the
+            # handler. Return values are discarded; HTTPException short-
+            # circuits via the existing try/except below.
+            if route.dependencies:
+                from hawkapi.di.resolver import _execute_dep_plan  # noqa: PLC0415
+
+                for dep_plan in route.dependencies:
+                    await _execute_dep_plan(dep_plan, request, cleanup_stack)
             if plan is not None:
                 is_async = plan.is_async
             else:

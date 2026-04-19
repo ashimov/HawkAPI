@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import enum
 import inspect
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, get_args, get_origin, get_type_hints
 
@@ -215,6 +216,30 @@ def _build_dep_callable_plan(dep: Any) -> DepCallablePlan:
         is_async_generator=is_async_generator,
         params=tuple(params),
     )
+
+
+def build_side_effect_dep_plans(
+    deps: Sequence[Depends] | None,
+) -> tuple[DepCallablePlan, ...]:
+    """Pre-compile a sequence of side-effect ``Depends(...)`` callables.
+
+    Used for route-level and router-level ``dependencies=[Depends(...)]``
+    lists where the return value is discarded. Each ``Depends.dependency`` is
+    compiled via :func:`_build_dep_callable_plan` (sub-dependencies resolved
+    recursively). ``Depends`` instances whose ``dependency`` is ``None`` — the
+    named-only form — are skipped with a clear error, since side-effect deps
+    must have a concrete callable.
+    """
+    if not deps:
+        return ()
+    plans: list[DepCallablePlan] = []
+    for dep in deps:
+        if dep.dependency is None:
+            raise ValueError(
+                f"side-effect dependencies must have a callable; got {dep!r} with dependency=None"
+            )
+        plans.append(_build_dep_callable_plan(dep.dependency))
+    return tuple(plans)
 
 
 # ---------------------------------------------------------------------------

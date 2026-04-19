@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from hawkapi._types import RouteHandler
 
 if TYPE_CHECKING:
-    from hawkapi.di.param_plan import HandlerPlan
+    from hawkapi.di.param_plan import DepCallablePlan, HandlerPlan
     from hawkapi.middleware.base import Middleware
 
 
@@ -35,4 +35,5 @@ class Route:
     version: str | None = None
     permissions: list[str] | None = None
     middleware: tuple[type[Middleware] | tuple[type[Middleware], dict[str, Any]], ...] | None = None
+    dependencies: tuple[DepCallablePlan, ...] = ()
     _handler_plan: HandlerPlan | None = field(default=None, repr=False)

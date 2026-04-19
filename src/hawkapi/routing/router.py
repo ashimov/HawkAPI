@@ -9,7 +9,12 @@ if TYPE_CHECKING:
     from hawkapi.middleware.base import Middleware
 
 from hawkapi._types import ASGIApp, RouteHandler
-from hawkapi.di.param_plan import build_handler_plan, extract_path_param_names
+from hawkapi.di.depends import Depends
+from hawkapi.di.param_plan import (
+    build_handler_plan,
+    build_side_effect_dep_plans,
+    extract_path_param_names,
+)
 from hawkapi.routing._radix_tree import RadixTree
 from hawkapi.routing.route import Route
 
@@ -22,9 +27,11 @@ class Router:
         *,
         prefix: str = "",
         tags: list[str] | None = None,
+        dependencies: list[Depends] | None = None,
     ) -> None:
         self.prefix = prefix.rstrip("/")
         self.tags = tags or []
+        self._dependencies: tuple[Depends, ...] = tuple(dependencies) if dependencies else ()
         self._tree = RadixTree()
         self._ws_routes: dict[str, tuple[RouteHandler, list[str] | None]] = {}
         self._sub_routers: list[Router] = []
@@ -62,6 +69,7 @@ class Router:
         version: str | None = None,
         permissions: list[str] | None = None,
         middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
+        dependencies: list[Depends] | None = None,
     ) -> Route:
         """Register a route directly."""
         full_path = self.prefix + ("/" + path.strip("/") if path.strip("/") else "") or "/"
@@ -72,6 +80,10 @@ class Router:
         path_param_names = extract_path_param_names(full_path)
         container = getattr(self, "container", None)
         plan = build_handler_plan(handler, container=container, path_params=path_param_names)
+
+        # Router-level deps run before route-level deps.
+        merged_deps = self._dependencies + (tuple(dependencies) if dependencies else ())
+        dep_plans = build_side_effect_dep_plans(merged_deps)
 
         route = Route(
             path=full_path,
@@ -93,6 +105,7 @@ class Router:
             version=version,
             permissions=permissions,
             middleware=tuple(middleware) if middleware else None,
+            dependencies=dep_plans,
             _handler_plan=plan,
         )
         self._tree.insert(route)
@@ -119,6 +132,7 @@ class Router:
         version: str | None = None,
         permissions: list[str] | None = None,
         middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
+        dependencies: list[Depends] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         def decorator(handler: RouteHandler) -> RouteHandler:
             self.add_route(
@@ -141,6 +155,7 @@ class Router:
                 version=version,
                 permissions=permissions,
                 middleware=middleware,
+                dependencies=dependencies,
             )
             return handler
 
@@ -166,6 +181,7 @@ class Router:
         version: str | None = None,
         permissions: list[str] | None = None,
         middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
+        dependencies: list[Depends] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         """Register a GET route handler."""
         return self._route_decorator(
@@ -187,6 +203,7 @@ class Router:
             version=version,
             permissions=permissions,
             middleware=middleware,
+            dependencies=dependencies,
         )
 
     def post(
@@ -209,6 +226,7 @@ class Router:
         version: str | None = None,
         permissions: list[str] | None = None,
         middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
+        dependencies: list[Depends] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         """Register a POST route handler."""
         return self._route_decorator(
@@ -230,6 +248,7 @@ class Router:
             version=version,
             permissions=permissions,
             middleware=middleware,
+            dependencies=dependencies,
         )
 
     def put(
@@ -252,6 +271,7 @@ class Router:
         version: str | None = None,
         permissions: list[str] | None = None,
         middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
+        dependencies: list[Depends] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         """Register a PUT route handler."""
         return self._route_decorator(
@@ -273,6 +293,7 @@ class Router:
             version=version,
             permissions=permissions,
             middleware=middleware,
+            dependencies=dependencies,
         )
 
     def patch(
@@ -295,6 +316,7 @@ class Router:
         version: str | None = None,
         permissions: list[str] | None = None,
         middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
+        dependencies: list[Depends] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         """Register a PATCH route handler."""
         return self._route_decorator(
@@ -316,6 +338,7 @@ class Router:
             version=version,
             permissions=permissions,
             middleware=middleware,
+            dependencies=dependencies,
         )
 
     def delete(
@@ -338,6 +361,7 @@ class Router:
         version: str | None = None,
         permissions: list[str] | None = None,
         middleware: list[type[Middleware] | tuple[type[Middleware], dict[str, Any]]] | None = None,
+        dependencies: list[Depends] | None = None,
     ) -> Callable[[RouteHandler], RouteHandler]:
         """Register a DELETE route handler."""
         return self._route_decorator(
@@ -359,6 +383,7 @@ class Router:
             version=version,
             permissions=permissions,
             middleware=middleware,
+            dependencies=dependencies,
         )
 
     def websocket(
@@ -404,6 +429,9 @@ class Router:
                     path_params=pp_names,
                 )
 
+            # Parent router's side-effect deps are prepended to each merged
+            # sub-route's existing dep chain (parent outer → child inner).
+            parent_dep_plans = build_side_effect_dep_plans(self._dependencies)
             merged_route = Route(
                 path=full_path,
                 handler=route.handler,
@@ -421,6 +449,7 @@ class Router:
                 version=route.version,
                 permissions=route.permissions,
                 middleware=route.middleware,
+                dependencies=parent_dep_plans + route.dependencies,
                 _handler_plan=plan,
             )
             self._tree.insert(merged_route)
