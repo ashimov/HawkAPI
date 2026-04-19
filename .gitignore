@@ -31,6 +31,5 @@ coverage.xml
 .idea/
 .vscode/
 .history/
-.claude/
 site/
 .remember/
