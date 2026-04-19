@@ -17,6 +17,17 @@ from hawkapi.routing import Route, Router
 if TYPE_CHECKING:
     from hawkapi.background import BackgroundTasks
     from hawkapi.config import Settings, env_field
+    from hawkapi.flags import (
+        EnvFlagProvider,
+        EvalContext,
+        FileFlagProvider,
+        FlagDisabled,
+        FlagProvider,
+        Flags,
+        StaticFlagProvider,
+        get_flags,
+        requires_flag,
+    )
     from hawkapi.middleware import Middleware
     from hawkapi.middleware.adaptive_concurrency import AdaptiveConcurrencyMiddleware
     from hawkapi.middleware.circuit_breaker import CircuitBreakerMiddleware
@@ -160,6 +171,16 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # observability
     "ObservabilityConfig": ("hawkapi.observability", "ObservabilityConfig"),
     "ObservabilityMiddleware": ("hawkapi.observability", "ObservabilityMiddleware"),
+    # feature flags
+    "EvalContext": ("hawkapi.flags", "EvalContext"),
+    "EnvFlagProvider": ("hawkapi.flags", "EnvFlagProvider"),
+    "FileFlagProvider": ("hawkapi.flags", "FileFlagProvider"),
+    "FlagDisabled": ("hawkapi.flags", "FlagDisabled"),
+    "FlagProvider": ("hawkapi.flags", "FlagProvider"),
+    "Flags": ("hawkapi.flags", "Flags"),
+    "StaticFlagProvider": ("hawkapi.flags", "StaticFlagProvider"),
+    "get_flags": ("hawkapi.flags", "get_flags"),
+    "requires_flag": ("hawkapi.flags", "requires_flag"),
 }
 
 
@@ -245,8 +266,17 @@ __all__ = [
     "env_field",
     "generate_openapi",
     "get",
+    "get_flags",
     "override",
     "patch",
     "post",
     "put",
+    "requires_flag",
+    "EvalContext",
+    "EnvFlagProvider",
+    "FileFlagProvider",
+    "FlagDisabled",
+    "FlagProvider",
+    "Flags",
+    "StaticFlagProvider",
 ]

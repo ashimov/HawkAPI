@@ -67,6 +67,7 @@ class HawkAPI(Router):
         readyz_url: str | None = "/readyz",
         livez_url: str | None = "/livez",
         request_timeout: float | None = None,
+        flags: Any = None,
     ) -> None:
         super().__init__(prefix=prefix, tags=tags)
         self.title = title
@@ -142,6 +143,13 @@ class HawkAPI(Router):
         # Plugin lifecycle hooks
         self._hooks.on_startup(self._run_plugin_startup)
         self._hooks.on_shutdown(self._run_plugin_shutdown)
+
+        # Feature flags
+        if flags is None:
+            from hawkapi.flags.providers import StaticFlagProvider  # noqa: PLC0415
+
+            flags = StaticFlagProvider({})
+        self.flags = flags
 
         logger.debug("HawkAPI initialized: %s v%s", title, version)
 
