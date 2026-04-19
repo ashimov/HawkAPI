@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "mypy>=1.11", "setuptools>=68", "msgspec>=0.19"]
 build-backend = "hatchling.build"
 
 [project]
@@ -124,6 +124,15 @@ exclude_lines = [
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
+
+[tool.mypy]
+# mypyc compilation (HAWKAPI_BUILD_MYPYC=1) drives mypy via build_mypyc.py.
+# Restrict type-checking scope so optional runtime deps absent from the build
+# isolation (structlog, prometheus_client, pydantic) do not fail the wheel
+# build, and so mypy does not walk the whole package when compiling the
+# selected hot modules.
+follow_imports = "silent"
+ignore_missing_imports = true
 
 [dependency-groups]
 dev = [

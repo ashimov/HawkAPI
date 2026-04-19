@@ -38,12 +38,11 @@ HOT_MODULES: tuple[str, ...] = (
     "src/hawkapi/routing/route.py",
     "src/hawkapi/routing/param_converters.py",
     "src/hawkapi/middleware/_pipeline.py",
-    # Added in Wave 3: router registration path (hot at startup, also called
-    # on include_router) and the plan-based dependency resolver (hot per
-    # request on every non-trivial route). Both are pure-typed with no
-    # subclassing constraints from user code, so mypyc can compile them freely.
-    "src/hawkapi/routing/router.py",
-    "src/hawkapi/di/resolver.py",
+    # NOTE: routing/router.py and di/resolver.py were considered for Wave 3
+    # expansion but are EXCLUDED — mypyc type-checks transitive imports which
+    # pull in the entire codebase (including optional deps like structlog,
+    # prometheus_client). Keep them interpreted until we have a narrower
+    # mypyc invocation that only checks the selected modules.
     # NOTE: app.py is intentionally EXCLUDED — HawkAPI(Router) is subclassed
     # by user code and mypyc does not allow interpreted classes to inherit from
     # compiled ones at runtime.
@@ -92,6 +91,10 @@ def build_extensions() -> Sequence[Any]:
     # Import lazily so pure-Python builds never need ``mypy`` installed.
     from mypyc.build import mypycify  # noqa: PLC0415
 
+    # Type-check scope is limited via [tool.mypy] in pyproject.toml
+    # (follow_imports = silent, ignore_missing_imports = true) so mypy does not
+    # walk the whole package when type-checking the compiled modules, and so
+    # optional runtime deps absent from build isolation do not fail the build.
     return mypycify(
         list(HOT_MODULES),
         strip_asserts=False,
