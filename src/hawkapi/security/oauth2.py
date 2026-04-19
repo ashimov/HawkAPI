@@ -21,9 +21,22 @@ class OAuth2PasswordBearer(SecurityScheme):
             return user
     """
 
-    def __init__(self, token_url: str, *, auto_error: bool = True) -> None:
-        """Create an OAuth2 Password Bearer scheme with the given token URL."""
+    def __init__(
+        self,
+        token_url: str,
+        *,
+        scopes: dict[str, str] | None = None,
+        auto_error: bool = True,
+    ) -> None:
+        """Create an OAuth2 Password Bearer scheme.
+
+        ``scopes`` is an optional mapping of ``scope_name → human description``
+        reflected into the OpenAPI ``components.securitySchemes`` entry.
+        Per-route scope requirements are declared separately via
+        ``Security(dep, scopes=[...])``.
+        """
         self.token_url = token_url
+        self.scopes = dict(scopes) if scopes else {}
         self.auto_error = auto_error
 
     async def __call__(self, request: Request) -> str | None:
@@ -53,7 +66,7 @@ class OAuth2PasswordBearer(SecurityScheme):
             "flows": {
                 "password": {
                     "tokenUrl": self.token_url,
-                    "scopes": {},
+                    "scopes": dict(self.scopes),
                 },
             },
         }

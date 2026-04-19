@@ -57,7 +57,9 @@ if TYPE_CHECKING:
         HTTPBearerCredentials,
         OAuth2PasswordBearer,
         PermissionPolicy,
+        Security,
         SecurityScheme,
+        SecurityScopes,
     )
     from hawkapi.staticfiles import StaticFiles
     from hawkapi.testing import TestClient, TestResponse, override
@@ -137,7 +139,9 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "HTTPBearerCredentials": ("hawkapi.security", "HTTPBearerCredentials"),
     "OAuth2PasswordBearer": ("hawkapi.security", "OAuth2PasswordBearer"),
     "PermissionPolicy": ("hawkapi.security", "PermissionPolicy"),
+    "Security": ("hawkapi.security", "Security"),
     "SecurityScheme": ("hawkapi.security", "SecurityScheme"),
+    "SecurityScopes": ("hawkapi.security", "SecurityScopes"),
     # staticfiles
     "StaticFiles": ("hawkapi.staticfiles", "StaticFiles"),
     # testing
@@ -219,7 +223,9 @@ __all__ = [
     "Response",
     "Route",
     "Router",
+    "Security",
     "SecurityScheme",
+    "SecurityScopes",
     "ServerSentEvent",
     "SessionMiddleware",
     "Settings",

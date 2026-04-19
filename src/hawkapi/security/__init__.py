@@ -4,6 +4,7 @@ from hawkapi.security.http_basic import HTTPBasic, HTTPBasicCredentials
 from hawkapi.security.http_bearer import HTTPBearer, HTTPBearerCredentials
 from hawkapi.security.oauth2 import OAuth2PasswordBearer
 from hawkapi.security.permissions import PermissionPolicy
+from hawkapi.security.scopes import Security, SecurityScopes
 
 __all__ = [
     "APIKeyCookie",
@@ -15,5 +16,7 @@ __all__ = [
     "HTTPBearerCredentials",
     "OAuth2PasswordBearer",
     "PermissionPolicy",
+    "Security",
     "SecurityScheme",
+    "SecurityScopes",
 ]
