@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         get_flags,
         requires_flag,
     )
+    from hawkapi.graphql import GraphQLExecutor
     from hawkapi.middleware import Middleware
     from hawkapi.middleware.adaptive_concurrency import AdaptiveConcurrencyMiddleware
     from hawkapi.middleware.circuit_breaker import CircuitBreakerMiddleware
@@ -181,6 +182,8 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "StaticFlagProvider": ("hawkapi.flags", "StaticFlagProvider"),
     "get_flags": ("hawkapi.flags", "get_flags"),
     "requires_flag": ("hawkapi.flags", "requires_flag"),
+    # graphql
+    "GraphQLExecutor": ("hawkapi.graphql", "GraphQLExecutor"),
 }
 
 
@@ -279,4 +282,5 @@ __all__ = [
     "FlagProvider",
     "Flags",
     "StaticFlagProvider",
+    "GraphQLExecutor",
 ]

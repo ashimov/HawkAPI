@@ -215,6 +215,45 @@ class HawkAPI(Router):
         self._invalidate_openapi_cache()
         super().include_controller(controller_class)
 
+    def mount_graphql(
+        self,
+        path: str,
+        *,
+        executor: Any,
+        graphiql: bool = True,
+        allow_get: bool = True,
+        context_factory: Callable[..., Any] | None = None,
+    ) -> None:
+        """Mount a GraphQL endpoint at *path*.
+
+        Args:
+            path: URL path to mount the endpoint (e.g. ``"/graphql"``).
+            executor: An async callable implementing ``GraphQLExecutor``.
+            graphiql: Serve the GraphiQL UI for browser GET requests (default True).
+            allow_get: Allow ``GET ?query=…`` requests (default True).
+            context_factory: Optional callable that receives the ``Request`` and
+                returns extra context dict (may be async).
+        """
+        from hawkapi.graphql._handler import make_graphql_handler  # noqa: PLC0415
+
+        _handler = make_graphql_handler(
+            executor,
+            graphiql=graphiql,
+            allow_get=allow_get,
+            context_factory=context_factory,
+        )
+
+        async def _endpoint(request: Request) -> Any:
+            return await _handler(request)
+
+        self.add_route(
+            path,
+            _endpoint,
+            methods={"GET", "POST"},
+            include_in_schema=False,
+            name=f"graphql:{path}",
+        )
+
     def readiness_check(self, name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Register a readiness check (decorator).
 

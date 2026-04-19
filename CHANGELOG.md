@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `app.mount_graphql(path, executor=...)` — thin GraphQL-over-HTTP adapter: POST + GET wire protocol, GraphiQL UI served to browsers, context injection via `context_factory`, and two optional adapters (`from_graphql_core`, `from_strawberry`) behind lazy imports; zero new runtime deps (Tier 2 GraphQL thin mount)
 - Feature flags subsystem: `FlagProvider` Protocol, built-in Static/Env/File providers (File with mtime hot-reload, JSON/TOML/YAML), `Flags` facade, `Depends(get_flags)` DI helper with per-request `EvalContext`, `@requires_flag` decorator (404 on off), plugin hook `on_flag_evaluated`; zero external deps (Tier 2 feature flags)
 - `hawkapi gen-client` CLI: generates zero-dep TypeScript (`client.ts`) + Python (`client.py`) client SDKs from OpenAPI 3.1 spec; msgspec-backed for Python, native fetch for TS (Tier 3 OpenAPI codegen)
 - Typed routes: `response_model` is now **auto-inferred from the handler's return annotation** when not passed explicitly (msgspec Structs, Pydantic models, parameterized generics, Optionals). Explicit `response_model=` still wins; primitives / `Response` subclasses / missing annotations skip inference (Tier 3 typed routes)
