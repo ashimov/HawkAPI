@@ -7,8 +7,7 @@ name = "hawkapi"
 version = "0.1.3"
 description = "High-performance Python web framework — faster alternative to FastAPI"
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = { file = "LICENSE" }
 requires-python = ">=3.12"
 authors = [
     { name = "HawkAPI Contributors", email = "hawkapi@users.noreply.github.com" },
