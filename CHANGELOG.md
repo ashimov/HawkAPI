@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- `hawkapi doctor <APP_SPEC>` — one-shot health-check CLI that lints a running HawkAPI app against 18 rules across 5 categories (security, observability, performance, correctness, deps). Human and JSON output, `--severity` filter, `--fix` scaffold, exit codes 0/1/2. Target v0.1.4.
+## [0.1.4] - 2026-04-19
+
+### Added
+
+- `hawkapi doctor <APP_SPEC>` — one-shot health-check CLI that lints a running HawkAPI app against 18 rules across 5 categories (security, observability, performance, correctness, deps). Human and JSON output, `--severity` filter, `--fix` scaffold, exit codes 0/1/2.
+- `docs/assets/hawk-icon.svg` + "Using HawkAPI?" README section with a dynamic PyPI-version badge for downstream projects (Markdown + reStructuredText snippets).
 
 ### Changed
 
-- **Trivial-route fast path** (`_execute_trivial_route`): routes with no DI, no dependencies, no permissions, no background tasks, no response model, no deprecation headers, and no per-route middleware now bypass all bookkeeping in `_execute_route` and call the handler directly. The eligibility flag (`route._is_trivial`) is computed once at registration time so the per-request branch is a single boolean check. Plaintext/plain-Response handlers — the dominant case in competitive benchmarks — qualify by default. Expected gain: ≥8 % on plaintext req/s (local: baseline 148 k → ~162 k req/s target), sufficient to take #1 vs BlackSheep (165 k on Linux CI).
+- **Trivial-route fast path** (`_execute_trivial_route`): routes with no DI, no dependencies, no permissions, no background tasks, no response model, no deprecation headers, and no per-route middleware now bypass all bookkeeping in `_execute_route` and call the handler directly. The eligibility flag (`route._trivial`) is computed once at registration time so the per-request branch is a single boolean check. Plaintext/plain-Response handlers — the dominant case in competitive benchmarks — qualify by default. Expected gain: ≥8 % on plaintext req/s (local: baseline 148 k → ~162 k req/s target), sufficient to take #1 vs BlackSheep (165 k on Linux CI).
 - **uvloop by default** in `hawkapi dev`: the CLI now calls `asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())` when uvloop is installed, before handing off to uvicorn. Pass `--no-uvloop` to opt out. No change when uvloop is absent.
 - **mypyc expansion** (Wave 3): `src/hawkapi/routing/router.py` and `src/hawkapi/di/resolver.py` added to `HOT_MODULES` in `build_mypyc.py`. These two modules cover the route-registration path (hot at startup) and the plan-based dependency resolver (hot per non-trivial request). `app.py` remains excluded (user subclassing), `requests/request.py` remains excluded (custom request overrides).
 
