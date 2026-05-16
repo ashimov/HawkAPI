@@ -34,7 +34,7 @@ jobs:
             archs: "AMD64"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # QEMU is required to cross-build Linux aarch64 wheels on x86_64 runners.
       - name: Set up QEMU
@@ -75,7 +75,7 @@ jobs:
     name: Build sdist
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
