@@ -1196,6 +1196,28 @@ Using `style=for-the-badge` instead of `flat` gives a larger, more prominent var
 
 ---
 
+## Official plugins
+
+The core stays small; everything else lives in optional `hawkapi-*` packages on PyPI. Each follows the same `init_xxx(app, ...)` + `Depends(get_xxx)` pattern.
+
+| Package | Purpose |
+| --- | --- |
+| [`hawkapi-sentry`](https://pypi.org/project/hawkapi-sentry/) | Sentry SDK — exceptions, traces, request context |
+| [`hawkapi-otel`](https://pypi.org/project/hawkapi-otel/) | OpenTelemetry — traces, metrics, logs |
+| [`hawkapi-auth`](https://pypi.org/project/hawkapi-auth/) | JWT (access + refresh), argon2id passwords, DI guards |
+| [`hawkapi-sqlalchemy`](https://pypi.org/project/hawkapi-sqlalchemy/) | Async SQLAlchemy 2.0, multi-DB routing, Alembic helper, fixtures |
+| [`hawkapi-cache`](https://pypi.org/project/hawkapi-cache/) | Response caching with TTL + tag invalidation; in-memory + Redis |
+| [`hawkapi-storage`](https://pypi.org/project/hawkapi-storage/) | Local / S3 / GCS / Azure with streaming + pre-signed URLs |
+| [`hawkapi-mail`](https://pypi.org/project/hawkapi-mail/) | SMTP / SES / SendGrid / Mailgun / Resend, templates, outbox, webhooks |
+| [`hawkapi-celery`](https://pypi.org/project/hawkapi-celery/) | Celery — async tasks, beat, context propagation, healthchecks |
+| [`hawkapi-websockets`](https://pypi.org/project/hawkapi-websockets/) | Connection manager, rooms, Redis pub/sub backplane, heartbeat |
+| [`hawkapi-mcp`](https://pypi.org/project/hawkapi-mcp/) | Model Context Protocol — expose routes as MCP tools for LLM agents |
+| [`hawkapi-admin`](https://pypi.org/project/hawkapi-admin/) | Auto-generated CRUD admin UI for hawkapi-sqlalchemy models |
+
+See [docs/guide/plugins.md](docs/guide/plugins.md) for the full reference and the upcoming-plugin roadmap.
+
+---
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.

@@ -48,3 +48,11 @@ pip install "hawkapi[all]"         # pydantic + granian + uvloop + uvicorn + ote
 pip install "hawkapi[otel]"        # OpenTelemetry tracing
 pip install "hawkapi[pydantic]"    # Pydantic model support
 ```
+
+## Ecosystem
+
+The core stays small. Everything else — auth, SQLAlchemy sessions, response caching, file storage, email, Celery, WebSockets, an admin UI — lives in optional `hawkapi-*` packages on PyPI. See **[Official plugins](guide/plugins.md)** for the full list.
+
+```bash
+pip install hawkapi-auth hawkapi-sqlalchemy hawkapi-cache hawkapi-admin
+```
