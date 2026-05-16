@@ -170,6 +170,22 @@ app.mount_grpc(
 )
 ```
 
+## Concurrent-RPC cap
+
+Since 0.1.6 every server starts with `maximum_concurrent_rpcs=1000` — a single
+peer cannot open enough RPCs to exhaust the event loop or FD table. HTTP-side
+rate-limit / bulkhead middleware does **not** apply to the gRPC port, so this
+in-band cap is the only protection layer for the gRPC transport.
+
+```python
+app.mount_grpc(
+    MyGreeter(),
+    add_to_server=add_GreeterServicer_to_server,
+    maximum_concurrent_rpcs=500,   # tighter than default for a public endpoint
+    # maximum_concurrent_rpcs=None # opt out (previous behaviour)
+)
+```
+
 ## Multiple services on one port
 
 Call `mount_grpc` twice with the **same port** — servicers are merged onto one

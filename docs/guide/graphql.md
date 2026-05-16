@@ -127,15 +127,44 @@ The base context always contains:
 ## GraphiQL toggle
 
 The interactive GraphiQL UI is served on `GET /graphql` when a browser `Accept`
-header prefers `text/html`:
+header prefers `text/html`. **Disabled by default** since 0.1.6 — opt in for
+development environments only:
 
 ```python
-# Enabled by default
-app.mount_graphql("/graphql", executor=executor, graphiql=True)
+# Default — UI is OFF, GET on /graphql returns 404 for browsers
+app.mount_graphql("/graphql", executor=executor)
 
-# Disable for production APIs that don't need the explorer
-app.mount_graphql("/graphql", executor=executor, graphiql=False)
+# Enable explicitly for local development
+app.mount_graphql("/graphql", executor=executor, graphiql=True)
 ```
+
+The bundled HTML pins exact CDN versions of React + GraphiQL and includes
+`integrity=` SRI hashes on every `<script>` / `<link>` so a compromised CDN
+cannot inject arbitrary JS.
+
+## Depth and timeout limits
+
+Every mounted endpoint enforces two DoS-protection budgets out of the box
+(since 0.1.6):
+
+| Argument    | Default | Disable        | What it caps                              |
+|-------------|--------:|----------------|-------------------------------------------|
+| `max_depth` |    `15` | `None`         | Maximum brace-nesting depth of the query  |
+| `timeout_s` |  `30.0` | `None`         | Wall-clock budget for `await executor(...)` |
+
+Override per mount:
+
+```python
+app.mount_graphql(
+    "/graphql",
+    executor=executor,
+    max_depth=8,       # tighter cap for an unauthenticated endpoint
+    timeout_s=5.0,     # tight tail-latency budget
+)
+```
+
+Queries that exceed `max_depth` are rejected with HTTP **400** before the
+executor is invoked. Queries that exceed `timeout_s` return HTTP **504**.
 
 ## Disabling GET queries
 
@@ -146,6 +175,13 @@ app.mount_graphql("/graphql", executor=executor, allow_get=False)
 ```
 
 GET requests will receive HTTP **405** when `allow_get=False`.
+
+## GET-vs-mutation guard (CWE-352)
+
+Multi-operation documents are now parsed before the GET-method check. A
+document containing both a query and a mutation with `?operationName=B`
+selecting the mutation is rejected over GET — closes the CSRF vector that
+allowed image tags / cache-poisoning to trigger writes.
 
 ## Roadmap
 

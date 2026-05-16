@@ -2,6 +2,30 @@
 
 HawkAPI provides authentication schemes that integrate with OpenAPI.
 
+!!! warning "Comparing credentials safely"
+    All built-in schemes (`HTTPBasic`, `HTTPBearer`, `APIKey*`,
+    `OAuth2PasswordBearer`) only *extract* credentials from the request.
+    Comparing the extracted value against your stored secret is **your**
+    responsibility. Always use a constant-time helper:
+
+    ```python
+    import secrets
+
+    if not secrets.compare_digest(creds.password, stored_hash):
+        raise HTTPException(401, detail="Invalid credentials")
+    ```
+
+    A plain `==` comparison leaks timing information and lets an attacker
+    discover the secret one byte at a time.
+
+For threat-model, OWASP API Top 10 compliance map, and responsible-disclosure
+policy see:
+
+- [`SECURITY.md`](https://github.com/ashimov/HawkAPI/blob/main/SECURITY.md) — disclosure policy
+- [`docs/security/threat-model.md`](../security/threat-model.md) — STRIDE per subsystem
+- [`docs/security/owasp-api-top10-2023.md`](../security/owasp-api-top10-2023.md) — compliance map
+- `hawkapi doctor app:app` — lint 18 production-readiness rules
+
 ## HTTP Bearer
 
 ```python

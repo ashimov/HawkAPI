@@ -20,7 +20,10 @@ async def checkout(flags: Flags = Depends(get_flags)):
     return {"flow": "v1"}
 ```
 
-`get_flags` automatically builds an `EvalContext` from the incoming request headers (`x-user-id`, `x-tenant-id`) and returns a `Flags` instance backed by `app.flags`.
+`get_flags` returns a `Flags` instance backed by `app.flags` with an `EvalContext` that exposes the raw request headers via `ctx.headers`. **It does not infer identity from headers** — `ctx.user_id` and `ctx.tenant_id` are always `None`. Identity must come from an authenticated dependency that *you* wire in (see [EvalContext](#evalcontext)).
+
+!!! warning "Why identity isn't lifted from headers (CWE-290)"
+    Previous releases (< 0.1.6) read `X-User-Id` / `X-Tenant-Id` request headers straight into `ctx.user_id` / `ctx.tenant_id`. That trusted attacker-controlled input as the targeting identity — any client could claim any user / tenant by setting the header and bypass flag gates on admin previews, beta features, or pricing experiments. 0.1.6 removed that read; the headers are still on `ctx.headers` for non-identity targeting (region, A/B variant, locale).
 
 ---
 
@@ -126,7 +129,31 @@ ctx = EvalContext(
 )
 ```
 
-`get_flags` auto-populates `user_id` and `tenant_id` from `x-user-id` / `x-tenant-id` request headers. Custom providers can use these fields to implement percentage rollouts, user allowlists, and tenant overrides.
+`get_flags` always returns an `EvalContext` with `user_id=None` / `tenant_id=None` — see the warning in [Quick start](#quick-start). Build a richer context from an authenticated dependency yourself:
+
+```python
+from hawkapi import Depends
+from hawkapi.flags import EvalContext, Flags, get_flags
+
+async def authed_flags(
+    flags: Flags = Depends(get_flags),
+    user = Depends(current_user),  # your own auth dependency
+) -> Flags:
+    return Flags(
+        flags._provider,  # type: ignore[attr-defined]
+        EvalContext(
+            user_id=user.id,
+            tenant_id=user.tenant_id,
+            attrs={"plan": user.plan},
+        ),
+    )
+
+@app.get("/checkout")
+async def checkout(flags: Flags = Depends(authed_flags)) -> dict:
+    ...
+```
+
+Custom providers can use these fields to implement percentage rollouts, user allowlists, and tenant overrides — once identity is derived from a trusted source.
 
 ---
 
