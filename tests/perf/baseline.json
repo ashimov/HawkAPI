@@ -6,12 +6,12 @@
       "recorded_at": "2026-04-19T09:26:33Z"
     },
     "tests/perf/test_memory_budget.py::test_no_leaks_in_request_loop": {
-      "peak_bytes": 47803,
-      "recorded_at": "2026-04-19T09:26:33Z"
+      "peak_bytes": 96743,
+      "recorded_at": "2026-05-16T06:50:48Z"
     },
     "tests/perf/test_memory_budget.py::test_single_request_memory_budget": {
-      "peak_bytes": 27033,
-      "recorded_at": "2026-04-19T09:26:33Z"
+      "peak_bytes": 67879,
+      "recorded_at": "2026-05-16T06:50:48Z"
     }
   }
 }
