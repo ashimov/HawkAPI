@@ -1,0 +1,69 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  bandit:
+    name: Bandit (SAST)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install bandit
+      - run: bandit -r src/ -f screen -ll
+
+  semgrep:
+    name: Semgrep (OWASP rulesets)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - run: semgrep --config=p/python --config=p/security-audit --config=p/owasp-top-ten --error --severity ERROR --severity WARNING src/
+
+  pip-audit:
+    name: pip-audit (dependency CVEs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pip-audit
+      - run: pip-audit --strict
+
+  gitleaks:
+    name: Gitleaks (secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+
+  codeql:
+    name: CodeQL (semantic SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python
+          queries: security-extended,security-and-quality
+      - uses: github/codeql-action/analyze@v3

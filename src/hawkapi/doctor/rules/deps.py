@@ -41,11 +41,19 @@ class _DOC050:
         if not current:
             return []
         try:
-            req = urllib.request.Request(
-                "https://pypi.org/pypi/hawkapi/json",
+            pypi_url = "https://pypi.org/pypi/hawkapi/json"
+            # Defensive scheme guard — even though the URL is hard-coded, the
+            # explicit check defeats accidental future changes that take a
+            # user-controlled value, and satisfies bandit B310 / semgrep
+            # `python.lang.security.audit.dangerous-urllib-open`.
+            if not pypi_url.startswith("https://"):
+                return []
+            req = urllib.request.Request(  # noqa: S310
+                pypi_url,
                 headers={"User-Agent": "hawkapi-doctor/1"},
             )
-            with urllib.request.urlopen(req, timeout=2) as resp:  # noqa: S310
+            # nosemgrep
+            with urllib.request.urlopen(req, timeout=2) as resp:  # noqa: S310  # nosec B310
                 data: dict[str, Any] = json.loads(resp.read())
             latest: str = data["info"]["version"]
         except Exception:

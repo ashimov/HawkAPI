@@ -274,6 +274,7 @@ class HawkAPI(Router):
         autostart: bool = True,
         max_workers: int | None = None,
         options: Any = (),
+        maximum_concurrent_rpcs: int | None = 1000,
     ) -> Any:
         """Mount a gRPC servicer and tie its lifecycle to ASGI lifespan.
 
@@ -326,6 +327,7 @@ class HawkAPI(Router):
                 reflection_service_names=reflection_service_names,
                 options=options,
                 max_workers=max_workers,
+                maximum_concurrent_rpcs=maximum_concurrent_rpcs,
             )
             mount._autostart = autostart
             mount._add_servicer(servicer, add_to_server)

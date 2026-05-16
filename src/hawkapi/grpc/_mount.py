@@ -31,6 +31,7 @@ class GrpcMount:
         reflection_service_names: Sequence[str] | None,
         options: Sequence[tuple[str, Any]],
         max_workers: int | None,
+        maximum_concurrent_rpcs: int | None = 1000,
     ) -> None:
         self.port = port
         self._host = host
@@ -40,6 +41,7 @@ class GrpcMount:
         self._reflection_service_names = reflection_service_names
         self._options = options
         self._max_workers = max_workers
+        self._maximum_concurrent_rpcs = maximum_concurrent_rpcs
         self._server: Any = None
         self._started = False
         # Pending (servicer, add_to_server) registrations — filled before _start
@@ -70,7 +72,7 @@ class GrpcMount:
         server: grpc.aio.Server = grpc.aio.server(
             interceptors=self._interceptors,
             options=list(self._options),
-            maximum_concurrent_rpcs=None,
+            maximum_concurrent_rpcs=self._maximum_concurrent_rpcs,
         )
         self._server = server
 

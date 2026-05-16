@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-05-16
+
+### Security
+
+- **[HIGH · CWE-290] `hawkapi.flags.get_flags` no longer trusts client-supplied identity headers.** The DI helper previously built `EvalContext(user_id=request.headers.get("x-user-id"), tenant_id=request.headers.get("x-tenant-id"))`, letting any attacker claim any user/tenant by setting the header — bypassing flag targeting for admin previews and sensitive feature toggles. `user_id` and `tenant_id` are now always `None` on the default context; operators MUST derive identity from an authenticated dependency and build their own `EvalContext`. The headers are still exposed on `ctx.headers` for non-identity targeting (region, A/B variant).
+- **[HIGH · CWE-352] GraphQL `GET` request can no longer execute mutations or subscriptions via multi-operation documents.** The previous `_is_mutation` check inspected only the first non-comment token, so a document `query A {…} mutation B {…}` with `?operationName=B` snuck a mutation through the GET guard — a CSRF vector for image tags, prefetch, and cache poisoning. The handler now parses every top-level operation and rejects GET whenever the selected operation (or any of them, if `operationName` is omitted) is not a `query`.
+- **[HIGH · CWE-770] GraphQL endpoint gained depth and timeout limits.** `make_graphql_handler` now accepts `max_depth: int | None = 15` (selection-set nesting cap, evaluated before executor dispatch) and `timeout_s: float | None = 30.0` (wraps the executor in `asyncio.wait_for`). A single deeply-nested or alias-explosion query can no longer pin a worker indefinitely.
+- **[MEDIUM · CWE-200] GraphiQL UI is now opt-in.** `app.mount_graphql(...)` ships with `graphiql=False` by default; the in-browser explorer (and the schema introspection it implies) must be explicitly enabled for dev environments. Production deployments that previously relied on the default are unaffected because schema browsing is no longer exposed unless requested.
+- **[MEDIUM] gRPC server now has a default concurrent-RPC cap.** `app.mount_grpc(...)` accepts `maximum_concurrent_rpcs: int | None = 1000` and passes it to `grpc.aio.server(...)`. Pass `None` to restore the previous unbounded behaviour.
+
+### Added
+
+- `docs/security/threat-model.md` — STRIDE per subsystem for the five 0.1.3–0.1.5 additions (doctor / gRPC / GraphQL / flags / bulkhead).
+- `docs/security/code-review-2026-05-16.md` — focused security code review covering `security/**`, security-relevant middleware, and request/response boundaries.
+- `docs/security/owasp-api-top10-2023.md` — OWASP API Security Top 10 (2023) compliance map.
+- `SECURITY.md` — responsible-disclosure policy + supported-versions table.
+- `.github/workflows/security.yml` — Bandit + Semgrep (p/python + p/security-audit + p/owasp-top-ten) + pip-audit + Gitleaks + CodeQL on every push, PR, and weekly cron.
+- `.github/dependabot.yml` — weekly pip and github-actions update PRs.
+
+### Changed
+
+- `hawkapi.doctor.rules.deps.DOC050` PyPI fetch now explicit-scheme-checks the hard-coded URL and ships with `# nosemgrep` / `# nosec` markers — satisfies Bandit B310 and Semgrep `dynamic-urllib-use-detected` cleanly while preserving the `--offline` opt-out.
+
 ## [0.1.5] - 2026-04-19
 
 ### Fixed

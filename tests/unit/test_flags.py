@@ -459,8 +459,17 @@ async def test_get_flags_uses_app_provider() -> None:
     assert await flags.bool("my-flag") is True
 
 
-async def test_get_flags_context_from_headers() -> None:
-    """EvalContext is built from x-user-id / x-tenant-id headers."""
+async def test_get_flags_does_not_trust_identity_headers() -> None:
+    """``get_flags`` MUST NOT lift identity from client-supplied headers.
+
+    Reading ``X-User-Id`` / ``X-Tenant-Id`` as the identity for flag
+    targeting is CWE-290 — any attacker can claim any user/tenant by
+    setting the header. ``user_id`` and ``tenant_id`` must always be ``None``
+    on the default context; operators derive identity from an authenticated
+    dependency and build their own ``EvalContext`` if needed. The headers
+    are still exposed via ``ctx.headers`` for non-identity targeting
+    (region, A/B variant, locale).
+    """
     from hawkapi import HawkAPI
     from hawkapi.requests.request import Request
 
@@ -477,5 +486,9 @@ async def test_get_flags_context_from_headers() -> None:
     flags = await get_flags(req)
     ctx = flags._context  # type: ignore[attr-defined]
     assert ctx is not None
-    assert ctx.user_id == "alice"
-    assert ctx.tenant_id == "acme"
+    # SECURITY: must NOT trust client-supplied identity headers.
+    assert ctx.user_id is None
+    assert ctx.tenant_id is None
+    # But the headers themselves are still on the context for non-identity rules.
+    assert ctx.headers.get("x-user-id") == "alice"
+    assert ctx.headers.get("x-tenant-id") == "acme"
