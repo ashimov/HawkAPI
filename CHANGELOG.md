@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-05-16
+
+### Performance
+
+- **Static-response cache (Wave 4).** Handlers whose body is exactly ``return SomeResponse(literal_args)`` with no parameters have their two ASGI messages (`http.response.start` + `http.response.body`) built once at registration time via AST inspection and re-emitted directly on every request — no handler call, no Response allocation, no header construction per request. Local micro-benchmark on Darwin / Python 3.13: **plaintext handler at 0.89 µs / request (1.1 M req/s on ASGI directly)** vs the previous trivial-path 6.76 µs / request. Detection covers `Response`, `PlainTextResponse`, `JSONResponse`, `HTMLResponse` with literal positional / keyword arguments. Any non-matching handler falls through to the existing trivial / general fast paths unchanged.
+
+### Added
+
+- README now leads with a **Why HawkAPI** matrix (Performance / Production rigor / Features no one else has) and a dedicated **p99 latency** table showing tail-behaviour wins for `body_validation`, `path_param`, and `plaintext`.
+
 ## [0.1.6] - 2026-05-16
 
 ### Security

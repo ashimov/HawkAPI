@@ -43,3 +43,9 @@ class Route:
     # directly, and is not deprecated. Set once at registration time by the
     # router so the per-request hot path avoids branching on all these checks.
     _trivial: bool = field(default=False, repr=False)
+    # Pre-built ASGI (start, body) message tuple for handlers whose body is
+    # exactly ``return SomeResponse(literal_args)`` with no parameters. When
+    # set, the dispatcher skips handler invocation entirely and emits the
+    # two cached messages directly. Targets the plaintext / static-JSON hot
+    # path. ``None`` for any non-matching handler.
+    _static_response: tuple[dict[str, Any], dict[str, Any]] | None = field(default=None, repr=False)

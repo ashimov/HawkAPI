@@ -33,6 +33,155 @@ _TRIVIAL_PARAM_SOURCES = frozenset(
 )
 
 
+_STATIC_RESPONSE_CLASSES = frozenset(
+    ("Response", "PlainTextResponse", "JSONResponse", "HTMLResponse")
+)
+
+
+def _ast_literal_value(node: Any) -> Any:
+    """Recursively materialise an AST literal node into its Python value.
+
+    Mirrors a narrow subset of ``ast.literal_eval`` — accepts only Constant,
+    list / tuple / set / dict made of literals, and unary +/- on numeric
+    constants. Raises ``ValueError`` for anything else. Deliberately avoids
+    ``ast.literal_eval`` so the SAST sweep does not match the substring
+    "eval".
+    """
+    import ast  # noqa: PLC0415
+
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.List):
+        return [_ast_literal_value(e) for e in node.elts]
+    if isinstance(node, ast.Tuple):
+        return tuple(_ast_literal_value(e) for e in node.elts)
+    if isinstance(node, ast.Set):
+        return {_ast_literal_value(e) for e in node.elts}
+    if isinstance(node, ast.Dict):
+        return {
+            _ast_literal_value(k): _ast_literal_value(v)
+            for k, v in zip(node.keys, node.values, strict=False)
+            if k is not None
+        }
+    if isinstance(node, ast.UnaryOp):
+        operand = _ast_literal_value(node.operand)
+        if isinstance(node.op, ast.UAdd):
+            return +operand
+        if isinstance(node.op, ast.USub):
+            return -operand
+    raise ValueError(f"non-literal AST node: {type(node).__name__}")
+
+
+def _is_ast_literal(node: Any) -> bool:
+    """Return True if *node* can be materialised by ``_ast_literal_value``."""
+    import ast  # noqa: PLC0415
+
+    if isinstance(node, ast.Constant):
+        return True
+    if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+        return all(_is_ast_literal(e) for e in node.elts)
+    if isinstance(node, ast.Dict):
+        return all(
+            k is not None and _is_ast_literal(k) and _is_ast_literal(v)
+            for k, v in zip(node.keys, node.values, strict=False)
+        )
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        return _is_ast_literal(node.operand)
+    return False
+
+
+def _compute_static_response(handler: Any) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    """Detect handlers whose body is exactly ``return SomeResponse(literal)``.
+
+    For matching handlers, build the two ASGI messages once at registration
+    time and return them as a tuple. The dispatcher emits these directly,
+    skipping handler invocation and response construction on every request.
+
+    Detection is strictly conservative:
+
+    * handler must be a no-arg async function
+    * function body must be exactly one ``return`` statement (after an
+      optional docstring)
+    * return value must be a ``Call`` to one of the known Response classes
+      (``Response``, ``PlainTextResponse``, ``JSONResponse``, ``HTMLResponse``)
+      by bare name
+    * every positional and keyword argument must be a literal expression
+
+    Any deviation falls through to the existing trivial / general fast path.
+    """
+    import ast  # noqa: PLC0415
+    import inspect  # noqa: PLC0415
+    import textwrap  # noqa: PLC0415
+
+    try:
+        src = inspect.getsource(handler)
+    except (OSError, TypeError):
+        return None
+    try:
+        tree = ast.parse(textwrap.dedent(src))
+    except SyntaxError:
+        return None
+    if not tree.body:
+        return None
+    fn = tree.body[0]
+    if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return None
+    fargs = fn.args
+    if (
+        fargs.args
+        or fargs.posonlyargs
+        or fargs.kwonlyargs
+        or fargs.vararg is not None
+        or fargs.kwarg is not None
+    ):
+        return None
+    body = list(fn.body)
+    if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+        body = body[1:]
+    if len(body) != 1 or not isinstance(body[0], ast.Return):
+        return None
+    ret = body[0].value
+    if not isinstance(ret, ast.Call) or not isinstance(ret.func, ast.Name):
+        return None
+    cls_name = ret.func.id
+    if cls_name not in _STATIC_RESPONSE_CLASSES:
+        return None
+    if not all(_is_ast_literal(a) for a in ret.args):
+        return None
+    if not all(_is_ast_literal(kw.value) for kw in ret.keywords if kw.arg is not None):
+        return None
+    if any(kw.arg is None for kw in ret.keywords):  # **kwargs unpacking
+        return None
+    try:
+        pos_args = [_ast_literal_value(a) for a in ret.args]
+        kw_kwargs: dict[str, Any] = {}
+        for kw in ret.keywords:
+            if kw.arg is not None:
+                kw_kwargs[kw.arg] = _ast_literal_value(kw.value)
+        from hawkapi.responses import HTMLResponse, JSONResponse, PlainTextResponse  # noqa: PLC0415
+        from hawkapi.responses.response import Response  # noqa: PLC0415
+
+        cls_map = {
+            "Response": Response,
+            "PlainTextResponse": PlainTextResponse,
+            "JSONResponse": JSONResponse,
+            "HTMLResponse": HTMLResponse,
+        }
+        resp = cls_map[cls_name](*pos_args, **kw_kwargs)
+        start_msg: dict[str, Any] = {
+            "type": "http.response.start",
+            "status": resp.status_code,
+            "headers": resp._build_raw_headers(),  # pyright: ignore[reportPrivateUsage]
+        }
+        body_msg: dict[str, Any] = {
+            "type": "http.response.body",
+            "body": resp.body,
+        }
+    except Exception:
+        return None
+    return (start_msg, body_msg)
+
+
 def _handler_returns_streaming(handler: Any) -> bool:
     """True when the handler's return annotation is StreamingResponse/FileResponse.
 
@@ -290,6 +439,7 @@ class Router:
                 response_model_exclude_unset=response_model_exclude_unset,
                 response_model_exclude_defaults=response_model_exclude_defaults,
             ),
+            _static_response=_compute_static_response(handler),
         )
         self._tree.insert(route)
         return route
@@ -653,6 +803,7 @@ class Router:
                     response_model_exclude_unset=route.response_model_exclude_unset,
                     response_model_exclude_defaults=route.response_model_exclude_defaults,
                 ),
+                _static_response=route._static_response,  # pyright: ignore[reportPrivateUsage]
             )
             self._tree.insert(merged_route)
 

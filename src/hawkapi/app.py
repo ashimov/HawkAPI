@@ -909,6 +909,22 @@ class HawkAPI(Router):
             await inner(scope, receive, send)
             return
 
+        # Hottest path: static-response routes have their two ASGI messages
+        # pre-built at registration time (handler body is exactly
+        # ``return SomeResponse(literal_args)``). No Request construction,
+        # no handler invocation, no Response allocation per call.
+        static = route._static_response  # pyright: ignore[reportPrivateUsage]
+        if static is not None:
+            start_msg, body_msg = static
+            await send(start_msg)
+            if scope["method"] == "HEAD":
+                # HEAD: same headers but empty body. Build a one-shot dict
+                # to avoid mutating the cached payload.
+                await send({"type": "http.response.body", "body": b""})
+            else:
+                await send(body_msg)
+            return
+
         plan = route._handler_plan  # pyright: ignore[reportPrivateUsage]
         request = Request(
             scope,
