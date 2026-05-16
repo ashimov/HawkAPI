@@ -109,7 +109,7 @@ jobs:
 
       - name: Upload memray binary artefacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: memray-bin
           path: /tmp/*.bin
@@ -147,7 +147,7 @@ jobs:
 
       - name: Upload benchmark artefacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: perf-benchmarks
           path: .benchmarks/

@@ -64,7 +64,7 @@ jobs:
           CIBW_TEST_SKIP: "*-linux_aarch64"
 
       - name: Upload wheel artefacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.archs }}
           path: ./wheelhouse/*.whl
@@ -89,7 +89,7 @@ jobs:
         run: uv build --sdist
 
       - name: Upload sdist artefact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sdist
           path: ./dist/*.tar.gz

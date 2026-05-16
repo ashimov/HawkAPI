@@ -53,7 +53,7 @@ jobs:
         run: ./benchmarks/competitive/run_all.sh
 
       - name: Upload raw results + RESULTS.md
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: competitive-results
           path: |
