@@ -33,3 +33,6 @@ coverage.xml
 .history/
 site/
 .remember/
+
+# Local Claude worktrees / state
+.claude/
